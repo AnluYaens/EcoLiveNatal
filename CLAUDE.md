@@ -1,4 +1,4 @@
-# AGENTS.md — Rules for Codex Agent
+# CLAUDE.md — Rules for Claude Code
 
 ## Read First
 
@@ -62,19 +62,3 @@ npm run dev     # Start dev server
 npm run build   # Production build (must pass clean)
 npm run lint    # ESLint check
 ```
-
----
-
-## Skills
-
-See `.agents/skills/` for additional behavioral guidance on:
-- `error-handling-patterns` — how to handle and surface errors
-- `frontend-design` — UI/UX standards
-- `next-best-practices` — Next.js conventions
-- `nextjs-app-router-patterns` — App Router specifics
-- `systematic-debugging` — how to debug issues
-- `tailwind-design-system` — Tailwind usage patterns
-- `vercel-react-best-practices` — Vercel deployment patterns
-- `verification-before-completion` — pre-merge checks
-
-These skills supplement the rules above. If a skill contradicts this file or `ecolivenatal_architecture.md`, this file wins.
