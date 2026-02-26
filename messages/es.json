@@ -1,0 +1,60 @@
+{
+  "app": {
+    "title": "EcoLiveNatal",
+    "tagline": "Del ultrasonido al retrato de tu bebé"
+  },
+  "uploadZone": {
+    "title": "Sube la foto del ultrasonido",
+    "hint": "Soporta JPG, PNG, HEIC · Máx 10MB",
+    "chooseFile": "Elegir archivo",
+    "takePhoto": "Tomar foto",
+    "privacyBadge": "Tu imagen no se almacena en ningún servidor",
+    "errorSize": "La imagen es demasiado grande. Máximo 10MB.",
+    "errorFormat": "Formato no soportado. Usa JPG, PNG o HEIC.",
+    "errorHeic": "Formato HEIC no soportado. Por favor convierte a JPG o PNG."
+  },
+  "crop": {
+    "tip": "Centra la cara del bebé para mejores resultados",
+    "zoom": "Zoom",
+    "rotate": "Rotar",
+    "confirm": "Confirmar recorte"
+  },
+  "styles": {
+    "soft": "Suave",
+    "softDesc": "Luz cálida y tono tierno",
+    "ultra": "Ultra Realista",
+    "ultraDesc": "Máximo detalle y textura",
+    "cinematic": "Cinematográfico",
+    "cinematicDesc": "Luz dramática y fondo difuminado"
+  },
+  "generate": {
+    "button": "✨ Generar retrato",
+    "creativity": "Creatividad",
+    "creativityLow": "Fiel",
+    "creativityMid": "Balanceado",
+    "creativityHigh": "Creativo",
+    "loading1": "Analizando estructura...",
+    "loading2": "Renderizando piel...",
+    "loading3": "Finalizando retrato...",
+    "estimatedTime": "~20–40 segundos"
+  },
+  "result": {
+    "title": "Retrato generado",
+    "download": "⬇ Descargar",
+    "whatsapp": "💬 Compartir por WhatsApp",
+    "regenerate": "🔄 Regenerar",
+    "newSession": "🗑 Nueva sesión"
+  },
+  "errors": {
+    "contentBlock": "La imagen no pudo procesarse. Intenta con una foto diferente.",
+    "timeout": "La generación tardó demasiado. Intenta de nuevo.",
+    "rateLimit": "Demasiadas solicitudes. Intenta en unos minutos.",
+    "darkImage": "La imagen es muy oscura. Intenta con mejor iluminación.",
+    "notUltrasound": "Esta imagen no parece ser un ultrasonido 3D/4D.",
+    "generic": "Ocurrió un error inesperado. Intenta de nuevo.",
+    "retry": "Reintentar"
+  },
+  "disclaimer": {
+    "text": "⚕️ Imagen ilustrativa generada por IA. No es diagnóstica. El resultado es una aproximación artística y no representa con exactitud al bebé real."
+  }
+}

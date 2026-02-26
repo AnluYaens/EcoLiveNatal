@@ -1,0 +1,60 @@
+{
+  "app": {
+    "title": "EcoLiveNatal",
+    "tagline": "From ultrasound to your baby's portrait"
+  },
+  "uploadZone": {
+    "title": "Upload the ultrasound photo",
+    "hint": "Supports JPG, PNG, HEIC · Max 10MB",
+    "chooseFile": "Choose file",
+    "takePhoto": "Take photo",
+    "privacyBadge": "Your image is not stored on any server",
+    "errorSize": "The image is too large. Maximum 10MB.",
+    "errorFormat": "Unsupported format. Use JPG, PNG, or HEIC.",
+    "errorHeic": "HEIC format is not supported. Please convert to JPG or PNG."
+  },
+  "crop": {
+    "tip": "Center the baby's face for best results",
+    "zoom": "Zoom",
+    "rotate": "Rotate",
+    "confirm": "Confirm crop"
+  },
+  "styles": {
+    "soft": "Soft",
+    "softDesc": "Warm light and tender tone",
+    "ultra": "Ultra Realistic",
+    "ultraDesc": "Maximum detail and texture",
+    "cinematic": "Cinematic",
+    "cinematicDesc": "Dramatic lighting and blurred background"
+  },
+  "generate": {
+    "button": "✨ Generate portrait",
+    "creativity": "Creativity",
+    "creativityLow": "Faithful",
+    "creativityMid": "Balanced",
+    "creativityHigh": "Creative",
+    "loading1": "Analyzing structure...",
+    "loading2": "Rendering skin...",
+    "loading3": "Finalizing portrait...",
+    "estimatedTime": "~20–40 seconds"
+  },
+  "result": {
+    "title": "Generated portrait",
+    "download": "⬇ Download",
+    "whatsapp": "💬 Share via WhatsApp",
+    "regenerate": "🔄 Regenerate",
+    "newSession": "🗑 New session"
+  },
+  "errors": {
+    "contentBlock": "The image could not be processed. Try a different photo.",
+    "timeout": "Generation took too long. Try again.",
+    "rateLimit": "Too many requests. Try again in a few minutes.",
+    "darkImage": "The image is too dark. Try with better lighting.",
+    "notUltrasound": "This image does not appear to be a 3D/4D ultrasound.",
+    "generic": "An unexpected error occurred. Try again.",
+    "retry": "Retry"
+  },
+  "disclaimer": {
+    "text": "⚕️ AI-generated illustrative image. Not diagnostic. The result is an artistic approximation and does not accurately represent the actual baby."
+  }
+}
