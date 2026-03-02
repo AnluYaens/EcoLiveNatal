@@ -4,8 +4,14 @@
     "tagline": "From ultrasound to your baby's portrait"
   },
   "uploadZone": {
-    "title": "Upload the ultrasound photo",
+    "title": "Upload your ultrasound",
+    "subtitle": "Capture and preserve this unique moment",
     "hint": "Supports JPG, PNG, HEIC · Max 10MB",
+    "dragHint": "Drag your file here",
+    "formatHint": "Supports JPG, PNG, HEIC",
+    "tip": "For best results, make sure the image has no reflections and is well lit",
+    "tipLabel": "Tip",
+    "converting": "Converting...",
     "chooseFile": "Choose file",
     "takePhoto": "Take photo",
     "privacyBadge": "Your image is not stored on any server",
@@ -14,10 +20,14 @@
     "errorHeic": "HEIC format is not supported. Please convert to JPG or PNG."
   },
   "crop": {
+    "title": "Crop image",
     "tip": "Center the baby's face for best results",
+    "subTip": "Adjust the zoom and rotation",
     "zoom": "Zoom",
     "rotate": "Rotate",
-    "confirm": "Confirm crop"
+    "confirm": "Confirm crop",
+    "reset": "Reset",
+    "back": "Back"
   },
   "styles": {
     "soft": "Soft",
@@ -28,7 +38,12 @@
     "cinematicDesc": "Dramatic lighting and blurred background"
   },
   "generate": {
-    "button": "✨ Generate portrait",
+    "title": "Generate portrait",
+    "confirmTitle": "Confirm your image",
+    "confirmSubtitle": "If the baby's face is clear, press generate",
+    "readyTitle": "Your image is ready",
+    "readySubtitle": "We will generate a realistic portrait from your ultrasound",
+    "button": "Generate portrait",
     "creativity": "Creativity",
     "creativityLow": "Faithful",
     "creativityMid": "Balanced",
@@ -36,14 +51,23 @@
     "loading1": "Analyzing structure...",
     "loading2": "Rendering skin...",
     "loading3": "Finalizing portrait...",
-    "estimatedTime": "~20–40 seconds"
+    "estimatedTime": "~20–40 seconds",
+    "back": "Back"
+  },
+  "steps": {
+    "upload": "Upload",
+    "crop": "Crop",
+    "generate": "Generate",
+    "result": "Result"
   },
   "result": {
-    "title": "Generated portrait",
-    "download": "⬇ Download",
-    "whatsapp": "💬 Share via WhatsApp",
-    "regenerate": "🔄 Regenerate",
-    "newSession": "🗑 New session"
+    "title": "Portrait generated",
+    "subtitle": "Your portrait is ready",
+    "quickActions": "Quick actions",
+    "download": "Download",
+    "whatsapp": "Share via WhatsApp",
+    "regenerate": "Regenerate",
+    "newSession": "New session"
   },
   "errors": {
     "contentBlock": "The image could not be processed. Try a different photo.",
@@ -54,7 +78,23 @@
     "generic": "An unexpected error occurred. Try again.",
     "retry": "Retry"
   },
+  "pinGate": {
+    "title": "Enter access PIN",
+    "subtitle": "Enter the code to continue",
+    "placeholder": "_ _ _ _",
+    "button": "Enter",
+    "error": "Incorrect PIN",
+    "digitLabel": "PIN digit {n}",
+    "noCode": "Didn't receive the code?"
+  },
   "disclaimer": {
     "text": "⚕️ AI-generated illustrative image. Not diagnostic. The result is an artistic approximation and does not accurately represent the actual baby."
+  },
+  "nav": {
+    "home": "Home",
+    "gallery": "Galería",
+    "upload": "Upload",
+    "history": "History",
+    "settings": "Settings"
   }
 }

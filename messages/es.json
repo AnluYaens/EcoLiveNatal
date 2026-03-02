@@ -4,8 +4,14 @@
     "tagline": "Del ultrasonido al retrato de tu bebé"
   },
   "uploadZone": {
-    "title": "Sube la foto del ultrasonido",
+    "title": "Sube tu ecografía",
+    "subtitle": "Captura y conserva este momento único",
     "hint": "Soporta JPG, PNG, HEIC · Máx 10MB",
+    "dragHint": "Arrastra tu archivo aquí",
+    "formatHint": "Soporta JPG, PNG, HEIC",
+    "tip": "Para mejores resultados, asegúrate de que la imagen no tenga reflejos y esté bien iluminada",
+    "tipLabel": "Consejo",
+    "converting": "Convirtiendo...",
     "chooseFile": "Elegir archivo",
     "takePhoto": "Tomar foto",
     "privacyBadge": "Tu imagen no se almacena en ningún servidor",
@@ -14,10 +20,14 @@
     "errorHeic": "Formato HEIC no soportado. Por favor convierte a JPG o PNG."
   },
   "crop": {
+    "title": "Recortar imagen",
     "tip": "Centra la cara del bebé para mejores resultados",
+    "subTip": "Ajusta el zoom y la rotación",
     "zoom": "Zoom",
     "rotate": "Rotar",
-    "confirm": "Confirmar recorte"
+    "confirm": "Confirmar recorte",
+    "reset": "Restablecer",
+    "back": "Volver"
   },
   "styles": {
     "soft": "Suave",
@@ -28,7 +38,12 @@
     "cinematicDesc": "Luz dramática y fondo difuminado"
   },
   "generate": {
-    "button": "✨ Generar retrato",
+    "title": "Generar retrato",
+    "confirmTitle": "Confirma tu imagen",
+    "confirmSubtitle": "Si la cara del bebé se ve clara, presiona generar",
+    "readyTitle": "Tu imagen está lista",
+    "readySubtitle": "Generaremos un retrato realista a partir de tu ecografía",
+    "button": "Generar retrato",
     "creativity": "Creatividad",
     "creativityLow": "Fiel",
     "creativityMid": "Balanceado",
@@ -36,14 +51,23 @@
     "loading1": "Analizando estructura...",
     "loading2": "Renderizando piel...",
     "loading3": "Finalizando retrato...",
-    "estimatedTime": "~20–40 segundos"
+    "estimatedTime": "~20–40 segundos",
+    "back": "Volver"
+  },
+  "steps": {
+    "upload": "Subir",
+    "crop": "Recortar",
+    "generate": "Generar",
+    "result": "Resultado"
   },
   "result": {
     "title": "Retrato generado",
-    "download": "⬇ Descargar",
-    "whatsapp": "💬 Compartir por WhatsApp",
-    "regenerate": "🔄 Regenerar",
-    "newSession": "🗑 Nueva sesión"
+    "subtitle": "Tu retrato está listo",
+    "quickActions": "Acciones rápidas",
+    "download": "Descargar",
+    "whatsapp": "Compartir por WhatsApp",
+    "regenerate": "Regenerar",
+    "newSession": "Nueva sesión"
   },
   "errors": {
     "contentBlock": "La imagen no pudo procesarse. Intenta con una foto diferente.",
@@ -54,7 +78,23 @@
     "generic": "Ocurrió un error inesperado. Intenta de nuevo.",
     "retry": "Reintentar"
   },
+  "pinGate": {
+    "title": "Ingresa el PIN de acceso",
+    "subtitle": "Introduce el código para continuar",
+    "placeholder": "_ _ _ _",
+    "button": "Ingresar",
+    "error": "PIN incorrecto",
+    "digitLabel": "Dígito {n} del PIN",
+    "noCode": "¿No recibiste el código?"
+  },
   "disclaimer": {
     "text": "⚕️ Imagen ilustrativa generada por IA. No es diagnóstica. El resultado es una aproximación artística y no representa con exactitud al bebé real."
+  },
+  "nav": {
+    "home": "Inicio",
+    "gallery": "Galería",
+    "upload": "Subir",
+    "history": "Historial",
+    "settings": "Ajustes"
   }
 }

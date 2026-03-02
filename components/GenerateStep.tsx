@@ -1,14 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import StyleCard from '@/components/StyleCard';
-import CreativitySlider from '@/components/CreativitySlider';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import ErrorMessage from '@/components/ErrorMessage';
-import { DEFAULT_STYLE, DEFAULT_CREATIVITY } from '@/lib/constants';
-
-type Style = 'soft' | 'ultra' | 'cinematic';
+import { SESSION_KEY } from '@/components/PinGate';
 
 interface GenerateStepProps {
   croppedBlob: Blob;
@@ -26,34 +22,18 @@ export default function GenerateStep({
   onResult,
   onBack,
 }: GenerateStepProps) {
-  const tStyles = useTranslations('styles');
   const tGenerate = useTranslations('generate');
   const tErrors = useTranslations('errors');
 
-  const [selectedStyle, setSelectedStyle] = useState<Style>(
-    DEFAULT_STYLE as Style
-  );
-  const [creativity, setCreativity] = useState(DEFAULT_CREATIVITY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const styleOptions: { key: Style; label: string; description: string }[] = [
-    {
-      key: 'soft',
-      label: tStyles('soft'),
-      description: tStyles('softDesc'),
-    },
-    {
-      key: 'ultra',
-      label: tStyles('ultra'),
-      description: tStyles('ultraDesc'),
-    },
-    {
-      key: 'cinematic',
-      label: tStyles('cinematic'),
-      description: tStyles('cinematicDesc'),
-    },
-  ];
+  useEffect(() => {
+    const url = URL.createObjectURL(croppedBlob);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [croppedBlob]);
 
   const handleGenerate = async () => {
     setError(null);
@@ -65,8 +45,9 @@ export default function GenerateStep({
     try {
       const formData = new FormData();
       formData.append('image', croppedBlob, 'crop.png');
-      formData.append('style', selectedStyle);
-      formData.append('creativity', String(creativity));
+      formData.append('style', 'ultra');
+      formData.append('creativity', '50');
+      formData.append('pin', sessionStorage.getItem(SESSION_KEY) ?? '');
 
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -95,45 +76,58 @@ export default function GenerateStep({
   };
 
   return (
-    <div className="max-w-lg mx-auto">
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        {styleOptions.map((s) => (
-          <StyleCard
-            key={s.key}
-            styleKey={s.key}
-            label={s.label}
-            description={s.description}
-            selected={selectedStyle === s.key}
-            onSelect={() => setSelectedStyle(s.key)}
-          />
-        ))}
+    <section className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors text-text-primary"
+          onClick={onBack}
+          aria-label={tGenerate('back')}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h2 className="text-lg font-semibold text-text-primary flex-1 text-center pr-9">
+          {tGenerate('title')}
+        </h2>
       </div>
 
-      <CreativitySlider value={creativity} onChange={setCreativity} />
+      {/* Crop preview + confirmation text */}
+      <div className="text-center space-y-4">
+        {previewUrl && (
+          <img
+            src={previewUrl}
+            alt=""
+            className="max-w-48 w-full rounded-xl mx-auto shadow-md"
+          />
+        )}
+        <div>
+          <h3 className="text-2xl font-bold text-text-primary">
+            {tGenerate('confirmTitle')}
+          </h3>
+          <p className="text-sm text-text-secondary mt-2 max-w-xs mx-auto leading-relaxed">
+            {tGenerate('confirmSubtitle')}
+          </p>
+          <p className="text-xs text-text-secondary/60 mt-3">{tGenerate('estimatedTime')}</p>
+        </div>
+      </div>
 
       {error && (
         <ErrorMessage message={error} onRetry={handleGenerate} />
       )}
 
-      <div className="flex gap-3 mt-6">
-        <button
-          type="button"
-          className="px-6 py-3 border border-gray-300 text-text-primary rounded-xl hover:bg-gray-50 transition-colors"
-          onClick={onBack}
-        >
-          ←
-        </button>
-        <button
-          type="button"
-          className="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
-          onClick={handleGenerate}
-          disabled={loading}
-        >
-          {tGenerate('button')}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="w-full bg-accent hover:bg-accent-hover text-white font-bold py-5 text-lg rounded-full transition-all duration-200 disabled:opacity-50"
+        onClick={handleGenerate}
+        disabled={loading}
+      >
+        {tGenerate('button')}
+      </button>
 
       <LoadingOverlay visible={loading} />
-    </div>
+    </section>
   );
 }
