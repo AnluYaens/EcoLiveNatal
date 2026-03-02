@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useTranslations } from 'next-intl';
+import { useTranslations } from "next-intl";
 
-type WizardStep = 'upload' | 'crop' | 'generate' | 'result';
+type WizardStep = "upload" | "crop" | "generate" | "result";
 
-const STEP_KEYS: WizardStep[] = ['upload', 'crop', 'generate', 'result'];
+const STEP_KEYS: WizardStep[] = ["upload", "crop", "generate", "result"];
 
 const STEP_INDEX: Record<WizardStep, number> = {
   upload: 0,
@@ -18,7 +18,7 @@ interface StepProgressProps {
 }
 
 export default function StepProgress({ currentStep }: StepProgressProps) {
-  const t = useTranslations('steps');
+  const t = useTranslations("steps");
   const currentIndex = STEP_INDEX[currentStep];
 
   return (
@@ -34,7 +34,7 @@ export default function StepProgress({ currentStep }: StepProgressProps) {
               {i > 0 && (
                 <div
                   className={`h-px w-10 mt-[5px] transition-colors duration-300 ${
-                    lineActive ? 'bg-accent' : 'bg-gray-200'
+                    lineActive ? "bg-accent" : "bg-gray-200"
                   }`}
                 />
               )}
@@ -43,9 +43,7 @@ export default function StepProgress({ currentStep }: StepProgressProps) {
               <div className="flex flex-col items-center gap-1">
                 <div
                   className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    filled
-                      ? 'bg-accent'
-                      : 'bg-transparent border border-accent'
+                    filled ? "bg-accent" : "bg-transparent border border-accent"
                   }`}
                 />
                 <span className="text-[10px] text-text-secondary leading-none whitespace-nowrap">

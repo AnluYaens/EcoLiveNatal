@@ -88,7 +88,9 @@
     "noCode": "Didn't receive the code?"
   },
   "disclaimer": {
-    "text": "⚕️ AI-generated illustrative image. Not diagnostic. The result is an artistic approximation and does not accurately represent the actual baby."
+    "text": "⚕️ AI-generated illustrative image. Not diagnostic. The result is an artistic approximation and does not accurately represent the actual baby.",
+    "footerText": "AI-generated illustrative image",
+    "closeButton": "Close"
   },
   "nav": {
     "home": "Home",
