@@ -30,13 +30,16 @@ export default function LoadingOverlay({ visible }: LoadingOverlayProps) {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-background rounded-2xl shadow-lg p-8 flex flex-col items-center gap-4 max-w-xs mx-4">
-        <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-        <p className="text-text-primary font-medium text-center">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-5 mx-4 w-full max-w-xs">
+        <div className="w-12 h-12 border-4 border-gray-200 border-t-accent rounded-full animate-spin" />
+        <p
+          key={messageIndex}
+          className="text-lg font-medium text-text-primary text-center"
+        >
           {loadingMessages[messageIndex]}
         </p>
-        <p className="text-text-secondary text-sm">{t('estimatedTime')}</p>
+        <p className="text-sm text-text-secondary">{t('estimatedTime')}</p>
       </div>
     </div>
   );

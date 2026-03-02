@@ -1,36 +1,192 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EcoLiveNatal
 
-## Getting Started
+AI-powered web app that transforms 3D/4D fetal ultrasound photos into photorealistic newborn portrait illustrations for clinics and fertility specialists.
 
-First, run the development server:
+> ⚕️ **Medical Disclaimer:** All generated images are illustrative and for emotional purposes only. They are not diagnostic, do not represent the actual appearance of the baby, and must not be used for any medical or clinical decision-making.
+
+---
+
+## Features
+
+- 📱 Mobile-first experience for clinic staff (desktop + mobile)
+- 🚀 AI image generation workflow powered by OpenAI
+- 🔒 Privacy-first processing (no intentional server-side image storage)
+- 🌎 Bilingual UI (Spanish / English)
+- 🏥 Clinic branding support via environment variables
+- 🧩 Guided wizard flow (upload, crop, generate, result)
+
+---
+
+## How It Works
+
+1. Clinic staff uploads a 3D/4D ultrasound image
+2. User adjusts the crop area before generation
+3. The app validates and processes the request
+4. AI generates an illustrative newborn portrait
+5. Staff reviews the result and shares/downloads it
+
+---
+
+## Quick Start
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-username/ecolivenatal.git
+cd ecolivenatal
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Set up environment variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your `OPENAI_API_KEY`.
+
+Important:
+
+- `.env` is local-only and must not be committed.
+- Use platform/project secrets in production deployments.
+
+### 4. Run in development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
+| Variable                      | Required | Description                                |
+| ----------------------------- | -------- | ------------------------------------------ |
+| `OPENAI_API_KEY`              | **Yes**  | API key used for image generation requests |
+| `NEXT_PUBLIC_APP_TITLE`       | No       | App title shown in the UI                  |
+| `NEXT_PUBLIC_CLINIC_NAME`     | No       | Clinic name for white-label branding       |
+| `NEXT_PUBLIC_CLINIC_LOGO_URL` | No       | Clinic logo URL shown in the header        |
 
-To learn more about Next.js, take a look at the following resources:
+Reference: `.env.example`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure (High Level)
 
-## Deploy on Vercel
+```text
+ecolivenatal/
+├── app/                 # Next.js App Router pages, layouts, API routes
+├── components/          # UI components and wizard steps
+├── i18n/                # i18n request configuration
+├── lib/                 # Validation, prompts, image utils, API client
+├── messages/            # Translations (es/en)
+├── AGENTS.md            # Codex agent instructions
+├── CLAUDE.md            # Claude agent instructions
+├── ecolivenatal_architecture.md
+├── .env.example
+└── README.md
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push to GitHub
+2. Import the repository into Vercel
+3. Add environment variables in the Vercel dashboard
+4. Deploy to preview first, then promote to production
+
+### Self-Hosted
+
+This project can run anywhere Next.js 14 is supported.
+
+Minimum production recommendations:
+
+- HTTPS enabled
+- Secrets managed outside the repo
+- Access controls for staff-only use
+- Logging/monitoring aligned with your privacy policy
+
+---
+
+## Privacy & Security
+
+- Images are processed for generation requests and are not intended to be stored server-side by the app
+- `.env` and secrets must remain outside version control
+- Input validation and API safeguards are implemented in the app
+- Review your hosting provider logs/retention settings before production rollout
+- Images sent to third-party AI providers are subject to their terms and policies
+
+---
+
+## Legal Disclaimer (Patient-Facing Use)
+
+This software generates illustrative images using artificial intelligence for emotional and informational purposes only. **It is not a medical device**, does not provide diagnostic information, and must not be used for clinical decision-making. Generated images are artistic approximations and do not represent the actual appearance of the baby.
+
+Suggested disclaimer text for clinics:
+
+> "This image was generated by artificial intelligence based on your ultrasound. It is an artistic illustration for emotional purposes only and does not represent the actual appearance of your baby. It has no diagnostic value."
+
+---
+
+## © Code Ownership / Intellectual Property
+
+Unless you explicitly publish a separate license, this repository should be treated as proprietary source code.
+
+Use the following notice (recommended) and replace the placeholder with your legal name or company name:
+
+```text
+Copyright (c) 2026 [YOUR LEGAL NAME OR COMPANY NAME]
+All rights reserved.
+```
+
+Recommended rights statement for this repository:
+
+- The source code, application logic, UI/UX assets, branding, and related materials are the intellectual property of the repository owner.
+- No license is granted to copy, modify, distribute, sublicense, sell, or deploy this code without prior written authorization from the owner.
+- Access to this private repository does not transfer ownership or grant reuse rights beyond what is explicitly agreed in writing.
+
+Important:
+
+- A README notice helps communicate intent, but for stronger legal clarity you should also add a dedicated `LICENSE` or proprietary notice file and (if needed) contributor/contractor IP assignment terms.
+
+---
+
+## Roadmap
+
+- [ ] Animated video from 4D scan
+- [ ] Before/after slider (ultrasound -> portrait)
+- [ ] Shareable patient link
+- [ ] Twin workflow support
+- [ ] Custom clinic watermark on downloads
+
+---
+
+## Tech Stack
+
+- [Next.js 14](https://nextjs.org/) — App Router + TypeScript
+- [Tailwind CSS](https://tailwindcss.com/) — Styling
+- [OpenAI API](https://platform.openai.com/) — AI image generation
+- [sharp](https://sharp.pixelplumbing.com/) — Image preprocessing
+- [react-easy-crop](https://github.com/ValentinH/react-easy-crop) — Crop UI
+- [next-intl](https://next-intl.dev/) — Internationalization
+- [Zod](https://zod.dev/) — Validation
+
+---
+
+## Production Checklist (Quick)
+
+- `npm run build` passes
+- Environment variables configured
+- Clinic branding reviewed
+- Legal disclaimer visible in UI
+- Deployment environment tested (preview/staging)

@@ -6,7 +6,7 @@ export default function DisclaimerBanner() {
   const t = useTranslations('disclaimer');
 
   return (
-    <div className="sticky bottom-0 w-full bg-[#FFF3CD] py-3 px-4 text-center text-xs text-text-primary z-40 border-t border-[#f0d080]">
+    <div className="w-full border-t border-amber-200 bg-amber-50 px-4 py-2 pb-16 text-center text-xs text-amber-800">
       {t('text')}
     </div>
   );

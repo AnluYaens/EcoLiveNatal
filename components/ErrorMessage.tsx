@@ -11,11 +11,11 @@ export default function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
   const t = useTranslations('errors');
 
   return (
-    <div className="rounded-2xl bg-[#fff0f0] border border-[#f0c0c0] p-4 text-center mt-4">
-      <p className="text-text-primary text-sm">{message}</p>
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center">
+      <p className="text-red-700 text-sm">{message}</p>
       {onRetry && (
         <button
-          className="mt-3 bg-accent hover:bg-accent-hover text-white font-semibold py-2 px-6 rounded-xl text-sm transition-colors"
+          className="mt-3 text-sm font-medium text-red-600 underline underline-offset-2 hover:text-red-700 transition-colors"
           onClick={onRetry}
         >
           {t('retry')}
