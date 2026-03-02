@@ -63,6 +63,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // 3a. Validate PIN
+  const pinRaw = formData.get('pin');
+  const accessPin = process.env.ACCESS_PIN;
+  if (!accessPin || typeof pinRaw !== 'string' || pinRaw !== accessPin) {
+    return NextResponse.json(
+      { error: 'Acceso no autorizado' },
+      { status: 403 }
+    );
+  }
+
   const imageFile = formData.get('image');
   const styleRaw = formData.get('style');
   const creativityRaw = formData.get('creativity');
