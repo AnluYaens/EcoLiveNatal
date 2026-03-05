@@ -162,11 +162,13 @@ export default function ResultStep({
     return files;
   };
 
+  const isMobile = () => /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
   const handleDownload = async () => {
     const files = await buildAllFiles();
 
-    // iOS Safari and Android Chrome: use Web Share API (supports saving to photos/files)
-    if (navigator.canShare?.({ files })) {
+    // iOS Safari and Android Chrome only: use Web Share API (saves to photos/files)
+    if (isMobile() && navigator.canShare?.({ files })) {
       try {
         await navigator.share({ files });
         return;
@@ -175,7 +177,7 @@ export default function ResultStep({
       }
     }
 
-    // Desktop fallback: trigger individual file downloads
+    // Desktop (and mobile fallback): trigger individual file downloads
     files.forEach((file) => downloadBlob(file, file.name));
   };
 
@@ -183,7 +185,7 @@ export default function ResultStep({
     const files = await buildAllFiles();
 
     // Mobile (iOS + Android): share all 3 images via native share sheet
-    if (navigator.canShare?.({ files })) {
+    if (isMobile() && navigator.canShare?.({ files })) {
       try {
         await navigator.share({ files });
         return;
