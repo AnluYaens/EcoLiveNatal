@@ -148,33 +148,51 @@ export default function ResultStep({
     }
   };
 
-  const handleDownload = async () => {
+  const buildAllFiles = async (): Promise<File[]> => {
+    const files: File[] = [];
     const resultBlob = base64ToBlob();
-    downloadBlob(resultBlob, 'retrato-ecolivenatal-resultado.png');
-
+    files.push(new File([resultBlob], 'retrato-ecolivenatal-resultado.png', { type: 'image/png' }));
     if (sourceBlob) {
-      downloadBlob(sourceBlob, 'retrato-ecolivenatal-eco.png');
+      files.push(new File([sourceBlob], 'retrato-ecolivenatal-eco.png', { type: 'image/png' }));
     }
-
     const splitBlob = await createSplitBlob();
     if (splitBlob) {
-      downloadBlob(splitBlob, 'retrato-ecolivenatal-split.png');
+      files.push(new File([splitBlob], 'retrato-ecolivenatal-split.png', { type: 'image/png' }));
     }
+    return files;
+  };
+
+  const handleDownload = async () => {
+    const files = await buildAllFiles();
+
+    // iOS Safari and Android Chrome: use Web Share API (supports saving to photos/files)
+    if (navigator.canShare?.({ files })) {
+      try {
+        await navigator.share({ files });
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to anchor download
+      }
+    }
+
+    // Desktop fallback: trigger individual file downloads
+    files.forEach((file) => downloadBlob(file, file.name));
   };
 
   const handleWhatsApp = async () => {
-    try {
-      const blob = base64ToBlob();
-      const file = new File([blob], 'retrato-ecolivenatal.png', {
-        type: 'image/png',
-      });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file] });
+    const files = await buildAllFiles();
+
+    // Mobile (iOS + Android): share all 3 images via native share sheet
+    if (navigator.canShare?.({ files })) {
+      try {
+        await navigator.share({ files });
         return;
+      } catch {
+        // User cancelled or share failed — fall through to WhatsApp link
       }
-    } catch {
-      // fall through to link fallback
     }
+
+    // Desktop fallback: open WhatsApp web
     window.open(
       `https://wa.me/?text=${encodeURIComponent(APP_NAME)}`,
       '_blank'
