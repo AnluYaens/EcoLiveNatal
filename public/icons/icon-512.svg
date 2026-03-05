@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <rect width="512" height="512" rx="108" fill="#1B3A5C"/>
-  <text x="256" y="298"
+  <text x="256" y="268"
         font-family="Arial Black, Arial, sans-serif"
-        font-size="246"
+        font-size="138"
         font-weight="900"
         text-anchor="middle"
-        fill="#FAFAF8">E</text>
-  <text x="256" y="448"
+        fill="#FAFAF8">ELN</text>
+  <text x="256" y="420"
         font-family="Arial, sans-serif"
         font-size="74"
         text-anchor="middle"
