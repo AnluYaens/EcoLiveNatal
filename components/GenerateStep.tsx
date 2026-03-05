@@ -28,6 +28,7 @@ export default function GenerateStep({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [skinTone, setSkinTone] = useState<'normal' | 'moreno'>('normal');
 
   useEffect(() => {
     const url = URL.createObjectURL(croppedBlob);
@@ -47,6 +48,7 @@ export default function GenerateStep({
       formData.append('image', croppedBlob, 'crop.png');
       formData.append('style', 'ultra');
       formData.append('creativity', '50');
+      formData.append('skinTone', skinTone);
       formData.append('pin', sessionStorage.getItem(SESSION_KEY) ?? '');
 
       const res = await fetch('/api/generate', {
@@ -111,6 +113,27 @@ export default function GenerateStep({
             {tGenerate('confirmSubtitle')}
           </p>
           <p className="text-xs text-text-secondary/60 mt-3">{tGenerate('estimatedTime')}</p>
+        </div>
+
+        {/* Skin tone selector */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-primary">{tGenerate('skinToneLabel')}</p>
+          <div className="inline-flex rounded-xl overflow-hidden border border-gray-200">
+            {(['normal', 'moreno'] as const).map((tone) => (
+              <button
+                key={tone}
+                type="button"
+                onClick={() => setSkinTone(tone)}
+                className={`px-5 py-2 text-sm font-medium transition-colors ${
+                  skinTone === tone
+                    ? 'bg-accent text-white'
+                    : 'bg-white text-text-secondary hover:bg-gray-50'
+                }`}
+              >
+                {tGenerate(tone === 'normal' ? 'skinToneNormal' : 'skinToneMoreno')}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

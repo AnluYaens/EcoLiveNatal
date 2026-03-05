@@ -52,6 +52,9 @@
     "loading2": "Rendering skin...",
     "loading3": "Finalizing portrait...",
     "estimatedTime": "~20–40 seconds",
+    "skinToneLabel": "Skin tone",
+    "skinToneNormal": "Normal",
+    "skinToneMoreno": "Dark",
     "back": "Back"
   },
   "steps": {

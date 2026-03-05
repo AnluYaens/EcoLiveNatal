@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
   const imageFile = formData.get('image');
   const styleRaw = formData.get('style');
   const creativityRaw = formData.get('creativity');
+  const skinToneRaw = formData.get('skinTone');
 
   if (!(imageFile instanceof File)) {
     return NextResponse.json(
@@ -173,10 +174,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 4. Validate style + creativity with Zod
+  // 4. Validate style + creativity + skinTone with Zod
   const parsed = GenerateSchema.safeParse({
     style: styleRaw,
     creativity: Number(creativityRaw),
+    skinTone: skinToneRaw ?? 'normal',
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -184,7 +186,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { style, creativity } = parsed.data;
+  const { style, creativity, skinTone } = parsed.data;
   console.log('Step 3: Validation passed');
 
   // 5. Validate image
@@ -214,7 +216,7 @@ export async function POST(req: NextRequest) {
 
     // 7. Build prompt
     console.log('Step 5: Building prompt');
-    const prompt = buildPrompt(style, creativity);
+    const prompt = buildPrompt(style, creativity, skinTone);
 
     // Mock mode — skip OpenAI, return a 1×1 pink PNG for UI testing
     if (process.env.MOCK_API === 'true') {

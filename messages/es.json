@@ -52,6 +52,9 @@
     "loading2": "Renderizando piel...",
     "loading3": "Finalizando retrato...",
     "estimatedTime": "~20–40 segundos",
+    "skinToneLabel": "Tono de piel",
+    "skinToneNormal": "Normal",
+    "skinToneMoreno": "Moreno/a",
     "back": "Volver"
   },
   "steps": {
