@@ -14,7 +14,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 60_000;
-const OPENAI_TIMEOUT_MS = 60_000;
+const OPENAI_TIMEOUT_MS = 55_000;
 const IMAGE_CACHE_TTL_MS = 45 * 60_000;
 const IMAGE_CACHE_MAX_ENTRIES = 100;
 const PROMPT_FINGERPRINT_VERSION = 'v1-neutral-consistency';
