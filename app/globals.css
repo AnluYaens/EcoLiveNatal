@@ -126,3 +126,51 @@ body {
   animation: fc-drift-c 17s ease-in-out infinite;
   animation-delay: -6s;
 }
+
+@keyframes result-compare-reveal {
+  0%, 10% {
+    clip-path: inset(0 100% 0 0);
+  }
+  45%, 55% {
+    clip-path: inset(0 0 0 0);
+  }
+  90%, 100% {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+
+@keyframes result-compare-divider {
+  0%, 10% {
+    left: 0%;
+  }
+  45%, 55% {
+    left: 100%;
+  }
+  90%, 100% {
+    left: 0%;
+  }
+}
+
+.result-compare-after {
+  animation: result-compare-reveal 6s ease-in-out infinite;
+}
+
+.result-compare-divider {
+  left: 0%;
+  animation: result-compare-divider 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-compare-after,
+  .result-compare-divider {
+    animation: none;
+  }
+
+  .result-compare-after {
+    clip-path: inset(0 0 0 0);
+  }
+
+  .result-compare-divider {
+    left: 100%;
+  }
+}

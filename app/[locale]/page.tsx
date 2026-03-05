@@ -63,6 +63,7 @@ export default function Home() {
         {step === 'result' && resultBase64 && (
           <ResultStep
             imageBase64={resultBase64}
+            sourceBlob={croppedBlob}
             onRegenerate={() => setStep('generate')}
             onNewSession={() => {
               setOriginalFile(null);

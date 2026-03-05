@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
 import OpenAI from 'openai';
 import sharp from 'sharp';
 import { preprocessUltrasound } from '@/lib/imagePreprocess';
@@ -14,6 +15,91 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 60_000;
 const OPENAI_TIMEOUT_MS = 60_000;
+const IMAGE_CACHE_TTL_MS = 45 * 60_000;
+const IMAGE_CACHE_MAX_ENTRIES = 100;
+const PROMPT_FINGERPRINT_VERSION = 'v1-neutral-consistency';
+const ENABLE_SESSION_IMAGE_CACHE = process.env.ENABLE_SESSION_IMAGE_CACHE === 'true';
+
+type RequestFingerprint = string;
+
+interface SessionImageCacheEntry {
+  imageBase64: string;
+  expiresAt: number;
+  lastAccessAt: number;
+}
+
+const sessionImageCache = new Map<RequestFingerprint, SessionImageCacheEntry>();
+
+function createRequestFingerprint(
+  processedImageBuffer: Buffer,
+  style: string,
+  creativity: number,
+): RequestFingerprint {
+  const hash = createHash('sha256');
+  hash.update(processedImageBuffer);
+  hash.update('\n');
+  hash.update(style);
+  hash.update('\n');
+  hash.update(String(creativity));
+  hash.update('\n');
+  hash.update(PROMPT_FINGERPRINT_VERSION);
+  return hash.digest('hex');
+}
+
+function cleanupImageCache(now: number): void {
+  const expiredKeys: RequestFingerprint[] = [];
+  sessionImageCache.forEach((entry, key) => {
+    if (entry.expiresAt <= now) {
+      expiredKeys.push(key);
+    }
+  });
+  expiredKeys.forEach((key) => {
+    sessionImageCache.delete(key);
+  });
+
+  if (sessionImageCache.size <= IMAGE_CACHE_MAX_ENTRIES) return;
+
+  const entriesByLastAccess: Array<[RequestFingerprint, SessionImageCacheEntry]> = [];
+  sessionImageCache.forEach((entry, key) => {
+    entriesByLastAccess.push([key, entry]);
+  });
+  entriesByLastAccess.sort((a, b) => a[1].lastAccessAt - b[1].lastAccessAt);
+  const overflowCount = sessionImageCache.size - IMAGE_CACHE_MAX_ENTRIES;
+
+  for (let i = 0; i < overflowCount; i++) {
+    const key = entriesByLastAccess[i]?.[0];
+    if (key) {
+      sessionImageCache.delete(key);
+    }
+  }
+}
+
+function getCachedImage(requestFingerprint: RequestFingerprint): string | null {
+  const now = Date.now();
+  const entry = sessionImageCache.get(requestFingerprint);
+  if (!entry) return null;
+
+  if (entry.expiresAt <= now) {
+    sessionImageCache.delete(requestFingerprint);
+    return null;
+  }
+
+  entry.lastAccessAt = now;
+  return entry.imageBase64;
+}
+
+function setCachedImage(
+  requestFingerprint: RequestFingerprint,
+  imageBase64: string,
+): void {
+  const now = Date.now();
+  sessionImageCache.set(requestFingerprint, {
+    imageBase64,
+    expiresAt: now + IMAGE_CACHE_TTL_MS,
+    lastAccessAt: now,
+  });
+  cleanupImageCache(now);
+}
 
 function getIp(req: NextRequest): string {
   return (
@@ -56,7 +142,9 @@ export async function POST(req: NextRequest) {
   let formData: FormData;
   try {
     formData = await req.formData();
-  } catch {
+    console.log('Step 2: FormData parsed');
+  } catch (err) {
+    console.error('Generate API error:', err);
     return NextResponse.json(
       { error: 'Ocurrió un error inesperado. Intenta de nuevo.' },
       { status: 400 }
@@ -66,6 +154,7 @@ export async function POST(req: NextRequest) {
   // 3a. Validate PIN
   const pinRaw = formData.get('pin');
   const accessPin = process.env.ACCESS_PIN;
+  console.log('Step 1: PIN check');
   if (!accessPin || typeof pinRaw !== 'string' || pinRaw !== accessPin) {
     return NextResponse.json(
       { error: 'Acceso no autorizado' },
@@ -96,6 +185,7 @@ export async function POST(req: NextRequest) {
     );
   }
   const { style, creativity } = parsed.data;
+  console.log('Step 3: Validation passed');
 
   // 5. Validate image
   if (imageFile.size > MAX_FILE_SIZE_BYTES) {
@@ -119,9 +209,11 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // 6. Preprocess
+    console.log('Step 4: Image preprocessing');
     const processed = await preprocessUltrasound(buffer);
 
     // 7. Build prompt
+    console.log('Step 5: Building prompt');
     const prompt = buildPrompt(style, creativity);
 
     // Mock mode — skip OpenAI, return a 1×1 pink PNG for UI testing
@@ -139,7 +231,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ image: mockPng.toString('base64') });
     }
 
+    let requestFingerprint: RequestFingerprint | null = null;
+    if (ENABLE_SESSION_IMAGE_CACHE) {
+      requestFingerprint = createRequestFingerprint(
+        processed,
+        style,
+        creativity,
+      );
+      const cachedImage = getCachedImage(requestFingerprint);
+      if (cachedImage) {
+        console.log('Generate API: cache hit');
+        return NextResponse.json({ image: cachedImage });
+      }
+    }
+
     // 8. Generate with 60s timeout
+    console.log('Step 6: Calling OpenAI');
     const base64 = await Promise.race([
       generatePortrait(processed, prompt),
       new Promise<never>((_, reject) =>
@@ -149,6 +256,10 @@ export async function POST(req: NextRequest) {
         )
       ),
     ]);
+
+    if (ENABLE_SESSION_IMAGE_CACHE && requestFingerprint) {
+      setCachedImage(requestFingerprint, base64);
+    }
 
     return NextResponse.json({ image: base64 });
   } catch (err: unknown) {
@@ -160,10 +271,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (err instanceof OpenAI.APIError) {
-      if (
-        err.code === 'content_policy_violation' ||
-        (err.status === 400 && err.code !== null)
-      ) {
+      if (err.code === 'moderation_blocked' || err.code === 'content_policy_violation') {
         return NextResponse.json(
           {
             error:
@@ -172,6 +280,8 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+    } else {
+      console.error('Generate API error:', err);
     }
 
     return NextResponse.json(
