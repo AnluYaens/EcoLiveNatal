@@ -67,7 +67,10 @@
     "download": "Descargar",
     "whatsapp": "Compartir por WhatsApp",
     "regenerate": "Regenerar",
-    "newSession": "Nueva sesión"
+    "newSession": "Nueva sesión",
+    "eco": "Eco",
+    "result": "Resultado",
+    "split": "Comparar"
   },
   "errors": {
     "contentBlock": "La imagen no pudo procesarse. Intenta con una foto diferente.",

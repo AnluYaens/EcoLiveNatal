@@ -1,26 +1,46 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { APP_NAME } from '@/lib/constants';
 import { stripDecorativeEmoji } from '@/lib/stripDecorativeEmoji';
 
 interface ResultStepProps {
   imageBase64: string;
+  sourceBlob: Blob | null;
   onRegenerate: () => void;
   onNewSession: () => void;
 }
 
 export default function ResultStep({
   imageBase64,
+  sourceBlob,
   onRegenerate,
   onNewSession,
 }: ResultStepProps) {
   const t = useTranslations('result');
+  const tSteps = useTranslations('steps');
   const title = stripDecorativeEmoji(t('title'));
   const downloadLabel = stripDecorativeEmoji(t('download'));
   const shareLabel = stripDecorativeEmoji(t('whatsapp'));
   const regenerateLabel = stripDecorativeEmoji(t('regenerate'));
   const newSessionLabel = stripDecorativeEmoji(t('newSession'));
+  const beforeLabel = stripDecorativeEmoji(tSteps('crop'));
+  const afterLabel = stripDecorativeEmoji(tSteps('result'));
+  const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'eco' | 'result' | 'split'>('split');
+
+  useEffect(() => {
+    if (!sourceBlob) {
+      setBeforeUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(sourceBlob);
+    setBeforeUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [sourceBlob]);
+
+  const effectiveViewMode = beforeUrl ? viewMode : 'result';
 
   const base64ToBlob = (): Blob => {
     const binary = atob(imageBase64);
@@ -31,14 +51,115 @@ export default function ResultStep({
     return new Blob([bytes], { type: 'image/png' });
   };
 
-  const handleDownload = () => {
-    const blob = base64ToBlob();
+  const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'retrato-ecolivenatal.png';
+    a.download = filename;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const loadImage = (src: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Failed to load image for split download'));
+      img.src = src;
+    });
+
+  const drawCover = (
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => {
+    const imageAspect = img.width / img.height;
+    const boxAspect = width / height;
+
+    let sx = 0;
+    let sy = 0;
+    let sw = img.width;
+    let sh = img.height;
+
+    if (imageAspect > boxAspect) {
+      sw = img.height * boxAspect;
+      sx = (img.width - sw) / 2;
+    } else {
+      sh = img.width / boxAspect;
+      sy = (img.height - sh) / 2;
+    }
+
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, width, height);
+  };
+
+  const createSplitBlob = async (): Promise<Blob | null> => {
+    const resultSrc = `data:image/png;base64,${imageBase64}`;
+    let ecoUrl = beforeUrl;
+    let shouldRevokeEcoUrl = false;
+
+    if (!ecoUrl && sourceBlob) {
+      ecoUrl = URL.createObjectURL(sourceBlob);
+      shouldRevokeEcoUrl = true;
+    }
+
+    if (!ecoUrl) return null;
+
+    try {
+      const [ecoImage, resultImage] = await Promise.all([
+        loadImage(ecoUrl),
+        loadImage(resultSrc),
+      ]);
+
+      const canvas = document.createElement('canvas');
+      const padding = 16;
+      const gap = 8;
+      canvas.width = 2048;
+      canvas.height = 1024;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      const panelWidth = (canvas.width - padding * 2 - gap) / 2;
+      const panelHeight = canvas.height - padding * 2;
+
+      ctx.fillStyle = '#FAFAF8';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawCover(ctx, ecoImage, padding, padding, panelWidth, panelHeight);
+      drawCover(
+        ctx,
+        resultImage,
+        padding + panelWidth + gap,
+        padding,
+        panelWidth,
+        panelHeight,
+      );
+
+      return await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((blob) => resolve(blob), 'image/png'),
+      );
+    } finally {
+      if (shouldRevokeEcoUrl && ecoUrl) {
+        URL.revokeObjectURL(ecoUrl);
+      }
+    }
+  };
+
+  const handleDownload = async () => {
+    const resultBlob = base64ToBlob();
+    downloadBlob(resultBlob, 'retrato-ecolivenatal-resultado.png');
+
+    if (sourceBlob) {
+      downloadBlob(sourceBlob, 'retrato-ecolivenatal-eco.png');
+    }
+
+    const splitBlob = await createSplitBlob();
+    if (splitBlob) {
+      downloadBlob(splitBlob, 'retrato-ecolivenatal-split.png');
+    }
   };
 
   const handleWhatsApp = async () => {
@@ -70,12 +191,97 @@ export default function ResultStep({
 
       {/* Result image */}
       <div className="rounded-2xl overflow-hidden shadow-lg ring-4 ring-white">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`data:image/png;base64,${imageBase64}`}
-          alt={title}
-          className="w-full object-cover"
-        />
+        <div className="border-b border-white/60 bg-background px-3 py-2">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                effectiveViewMode === 'eco'
+                  ? 'bg-accent text-white'
+                  : 'bg-white text-text-primary border border-gray-200'
+              }`}
+              onClick={() => setViewMode('eco')}
+              disabled={!beforeUrl}
+            >
+              {t('eco')}
+            </button>
+            <button
+              type="button"
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                effectiveViewMode === 'result'
+                  ? 'bg-accent text-white'
+                  : 'bg-white text-text-primary border border-gray-200'
+              }`}
+              onClick={() => setViewMode('result')}
+            >
+              {t('result')}
+            </button>
+            <button
+              type="button"
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                effectiveViewMode === 'split'
+                  ? 'bg-accent text-white'
+                  : 'bg-white text-text-primary border border-gray-200'
+              }`}
+              onClick={() => setViewMode('split')}
+              disabled={!beforeUrl}
+            >
+              {t('split')}
+            </button>
+          </div>
+        </div>
+
+        <div className="relative aspect-square w-full bg-white">
+          {effectiveViewMode === 'eco' && beforeUrl && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={beforeUrl}
+                alt={beforeLabel}
+                className="h-full w-full object-cover"
+              />
+            </>
+          )}
+
+          {effectiveViewMode === 'result' && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`data:image/png;base64,${imageBase64}`}
+                alt={title}
+                className="h-full w-full object-cover"
+              />
+            </>
+          )}
+
+          {effectiveViewMode === 'split' && beforeUrl && (
+            <div className="grid h-full grid-cols-2 gap-1 bg-background p-1">
+              <div className="relative overflow-hidden rounded-xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={beforeUrl}
+                  alt={beforeLabel}
+                  className="h-full w-full object-cover"
+                />
+                <div className="pointer-events-none absolute left-2 top-2 rounded-lg bg-white/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
+                  {t('eco')}
+                </div>
+              </div>
+
+              <div className="relative overflow-hidden rounded-xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`data:image/png;base64,${imageBase64}`}
+                  alt={afterLabel}
+                  className="h-full w-full object-cover"
+                />
+                <div className="pointer-events-none absolute right-2 top-2 rounded-lg bg-white/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
+                  {t('result')}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Quick actions label */}
