@@ -36,6 +36,27 @@ export default function GenerateStep({
     return () => URL.revokeObjectURL(url);
   }, [croppedBlob]);
 
+  const compressBlob = async (blob: Blob): Promise<Blob> => {
+    const MAX_DIM = 1280;
+    try {
+      const bitmap = await createImageBitmap(blob);
+      const { width, height } = bitmap;
+      const scale = Math.min(1, MAX_DIM / Math.max(width, height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { bitmap.close(); return blob; }
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      return await new Promise<Blob>((res) =>
+        canvas.toBlob((b) => res(b ?? blob), 'image/jpeg', 0.88)
+      );
+    } catch {
+      return blob;
+    }
+  };
+
   const handleGenerate = async () => {
     setError(null);
     setLoading(true);
@@ -44,8 +65,9 @@ export default function GenerateStep({
     const timeoutId = setTimeout(() => controller.abort(), 90_000);
 
     try {
+      const imageBlob = await compressBlob(croppedBlob);
       const formData = new FormData();
-      formData.append('image', croppedBlob, 'crop.png');
+      formData.append('image', imageBlob, 'crop.jpg');
       formData.append('style', 'ultra');
       formData.append('creativity', '50');
       formData.append('skinTone', skinTone);

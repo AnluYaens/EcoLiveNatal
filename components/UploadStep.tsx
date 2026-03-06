@@ -33,19 +33,40 @@ export default function UploadStep({ onFileSelected }: UploadStepProps) {
         return;
       }
 
-      if (file.type === 'image/heic' || file.type === 'image/heif') {
+      if (['image/heic', 'image/heif', 'image/hevc'].includes(file.type)) {
         setConverting(true);
         try {
-          const heic2anyModule = await import('heic2any');
-          const heic2any = heic2anyModule.default as HeicConverter;
-          const result = await heic2any({ blob: file, toType: 'image/jpeg' });
-          const convertedBlob = Array.isArray(result) ? result[0] : result;
-          const convertedFile = new File(
-            [convertedBlob],
-            file.name.replace(/\.(heic|heif)$/i, '.jpg'),
-            { type: 'image/jpeg' }
-          );
-          onFileSelected(convertedFile);
+          const outName = file.name.replace(/\.(heic|heif|hevc)$/i, '.jpg');
+          let convertedBlob: Blob | null = null;
+
+          // Stage 1: native browser decoding (Android 12+ / iOS — no WASM)
+          try {
+            const bitmap = await createImageBitmap(file);
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(bitmap, 0, 0);
+              bitmap.close();
+              convertedBlob = await new Promise<Blob | null>((res) =>
+                canvas.toBlob(res, 'image/jpeg', 0.92)
+              );
+            }
+          } catch {
+            // Stage 1 failed — fall through to heic2any
+          }
+
+          // Stage 2: heic2any WASM fallback
+          if (!convertedBlob) {
+            const heic2anyModule = await import('heic2any');
+            const heic2any = heic2anyModule.default as HeicConverter;
+            const result = await heic2any({ blob: file, toType: 'image/jpeg' });
+            convertedBlob = Array.isArray(result) ? result[0] : result;
+          }
+
+          if (!convertedBlob) throw new Error('conversion failed');
+          onFileSelected(new File([convertedBlob], outName, { type: 'image/jpeg' }));
         } catch {
           setError(t('errorHeic'));
         } finally {
@@ -175,7 +196,7 @@ export default function UploadStep({ onFileSelected }: UploadStepProps) {
         type="file"
         aria-label={t('chooseFile')}
         className="hidden"
-        accept=".jpg,.jpeg,.png,.heic,.heif,.webp,image/jpeg,image/png,image/heic,image/heif,image/webp"
+        accept=".jpg,.jpeg,.png,.heic,.heif,.hevc,.webp,image/jpeg,image/png,image/heic,image/heif,image/hevc,image/webp"
         onChange={handleInputChange}
       />
       <input

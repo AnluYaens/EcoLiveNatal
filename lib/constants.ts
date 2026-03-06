@@ -5,6 +5,7 @@ export const SUPPORTED_MIME_TYPES = [
   'image/png',
   'image/heic',
   'image/heif',
+  'image/hevc',
   'image/webp',
 ] as const;
 export const DEFAULT_CREATIVITY = 50;
