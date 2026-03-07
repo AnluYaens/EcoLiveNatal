@@ -1,29 +1,60 @@
 # EcoLiveNatal
 
-AI-powered web app that transforms 3D/4D fetal ultrasound photos into photorealistic newborn portrait illustrations for clinics and fertility specialists.
+AI-powered web application that transforms 3D/4D fetal ultrasound photos into photorealistic newborn portrait illustrations — built for clinics and fertility specialists.
 
-> ⚕️ **Medical Disclaimer:** All generated images are illustrative and for emotional purposes only. They are not diagnostic, do not represent the actual appearance of the baby, and must not be used for any medical or clinical decision-making.
+> **Medical Disclaimer:** All generated images are illustrative and for emotional purposes only. They are not diagnostic, do not represent the actual appearance of the baby, and must not be used for any medical or clinical decision-making.
 
 ---
 
 ## Features
 
-- 📱 Mobile-first experience for clinic staff (desktop + mobile)
-- 🚀 AI image generation workflow powered by OpenAI
-- 🔒 Privacy-first processing (no intentional server-side image storage)
-- 🌎 Bilingual UI (Spanish / English)
-- 🏥 Clinic branding support via environment variables
-- 🧩 Guided wizard flow (upload, crop, generate, result)
+- Mobile-first experience optimized for clinic staff (iOS, Android, desktop)
+- AI portrait generation powered by OpenAI
+- Multi-tenant support — independent accounts per doctor or clinic with configurable daily limits
+- Guided 4-step wizard: upload, crop, generate, result
+- Bilingual interface (Spanish / English) with full i18n
+- Privacy-first processing — no server-side image storage
+- Clinic white-label branding via environment variables
 
 ---
 
 ## How It Works
 
-1. Clinic staff uploads a 3D/4D ultrasound image
-2. User adjusts the crop area before generation
-3. The app validates and processes the request
+1. Clinic staff uploads a 3D/4D ultrasound image (JPG, PNG, HEIC supported)
+2. User adjusts the crop area to center the baby's face
+3. Staff selects skin tone and confirms generation
 4. AI generates an illustrative newborn portrait
-5. Staff reviews the result and shares/downloads it
+5. Staff downloads or shares the result
+
+---
+
+## Tech Stack
+
+| Layer            | Technology                                         |
+| ---------------- | -------------------------------------------------- |
+| Framework        | Next.js 14 (App Router, TypeScript)                |
+| Styling          | Tailwind CSS                                       |
+| AI               | OpenAI API — image generation                      |
+| Image processing | sharp (server-side), react-easy-crop (client-side) |
+| Validation       | Zod                                                |
+| i18n             | next-intl (ES / EN)                                |
+| HEIC conversion  | heic2any (client-side, no server dependency)       |
+
+---
+
+## Security Architecture
+
+Security is layered across multiple levels. The system follows Kerckhoffs' principle.
+
+| Layer                     | Mechanism                                                      |
+| ------------------------- | -------------------------------------------------------------- |
+| Access control            | 6-digit PIN per account, verified server-side on every request |
+| Brute-force protection    | IP lockout after 5 failed attempts (15-minute cooldown)        |
+| Per-account rate limiting | Configurable daily request limit per doctor/clinic             |
+| Cross-account isolation   | PIN and account ID are cross-validated on every API call       |
+| Burst protection          | In-memory IP rate limiter (5 requests/minute)                  |
+| Input validation          | Zod schema validation on all API inputs                        |
+| Secret management         | All credentials stored outside the repository (`.gitignore`)   |
 
 ---
 
@@ -48,14 +79,17 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and add your `OPENAI_API_KEY`.
+Edit `.env` and add your `OPENAI_API_KEY`. Never commit this file.
 
-Important:
+### 4. Configure accounts
 
-- `.env` is local-only and must not be committed.
-- Use platform/project secrets in production deployments.
+```bash
+cp config/accounts.example.json config/accounts.json
+```
 
-### 4. Run in development
+Edit `config/accounts.json` with your accounts (see [Multi-Tenant Configuration](#multi-tenant-configuration)). Never commit this file — it contains PINs.
+
+### 5. Run in development
 
 ```bash
 npm run dev
@@ -65,128 +99,148 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
+## Multi-Tenant Configuration
+
+Each doctor or clinic gets an independent account with its own PIN and daily generation limit. Accounts are defined in `config/accounts.json` (server-side only, never committed).
+
+```json
+{
+  "accounts": [
+    {
+      "id": "clinic-a",
+      "pin": "123456",
+      "name": "Dr. García",
+      "dailyLimit": 100
+    },
+    {
+      "id": "clinic-b",
+      "pin": "654321",
+      "name": "Dr. López",
+      "dailyLimit": 10
+    },
+    {
+      "id": "clinic-c",
+      "pin": "112233",
+      "name": "Dra. Martínez",
+      "dailyLimit": 40
+    }
+  ]
+}
+```
+
+**Rules:**
+
+- PINs must be exactly 6 digits and unique across all accounts
+- `dailyLimit: 0` means unlimited
+- `id` is the stable internal identifier — never change it once set, as it keys usage tracking
+- Usage resets automatically at UTC midnight each day
+- Runtime usage data is stored in `data/usage.json` (auto-created, git-ignored)
+
+To add or update an account: edit `config/accounts.json` and restart the server.
+
+---
+
 ## Environment Variables
 
-| Variable                      | Required | Description                                |
-| ----------------------------- | -------- | ------------------------------------------ |
-| `OPENAI_API_KEY`              | **Yes**  | API key used for image generation requests |
-| `NEXT_PUBLIC_APP_TITLE`       | No       | App title shown in the UI                  |
-| `NEXT_PUBLIC_CLINIC_NAME`     | No       | Clinic name for white-label branding       |
-| `NEXT_PUBLIC_CLINIC_LOGO_URL` | No       | Clinic logo URL shown in the header        |
+| Variable                      | Required | Description                                                           |
+| ----------------------------- | -------- | --------------------------------------------------------------------- |
+| `OPENAI_API_KEY`              | Yes      | API key for image generation                                          |
+| `NEXT_PUBLIC_APP_TITLE`       | No       | App title displayed in the UI (default: `EcoLiveNatal`)               |
+| `NEXT_PUBLIC_CLINIC_NAME`     | No       | Clinic name for white-label branding                                  |
+| `NEXT_PUBLIC_CLINIC_LOGO_URL` | No       | Clinic logo URL shown in the header                                   |
+| `MOCK_API`                    | No       | Set to `true` to skip OpenAI and return a mock image (for UI testing) |
+| `ENABLE_SESSION_IMAGE_CACHE`  | No       | Set to `true` to cache identical generation requests in memory        |
 
 Reference: `.env.example`
 
 ---
 
-## Project Structure (High Level)
+## Project Structure
 
-```text
+```
 ecolivenatal/
-├── app/                 # Next.js App Router pages, layouts, API routes
-├── components/          # UI components and wizard steps
-├── i18n/                # i18n request configuration
-├── lib/                 # Validation, prompts, image utils, API client
-├── messages/            # Translations (es/en)
-├── AGENTS.md            # Codex agent instructions
-├── CLAUDE.md            # Claude agent instructions
-├── ecolivenatal_architecture.md
+├── app/
+│   ├── api/
+│   │   ├── generate/        # Portrait generation endpoint
+│   │   └── verify-pin/      # Account authentication endpoint
+│   └── [locale]/            # Localized pages (ES / EN)
+├── components/              # UI components and wizard steps
+├── config/
+│   ├── accounts.json        # Account definitions — git-ignored
+│   └── accounts.example.json
+├── data/
+│   └── usage.json           # Runtime daily usage tracking — git-ignored
+├── i18n/                    # next-intl configuration
+├── lib/
+│   ├── accountStore.ts      # Multi-tenant account management
+│   ├── bruteForce.ts        # Brute-force protection
+│   ├── constants.ts         # Shared configuration constants
+│   ├── imagePreprocess.ts   # Ultrasound preprocessing
+│   ├── openaiClient.ts      # OpenAI wrapper
+│   ├── promptBuilder.ts     # AI prompt assembly
+│   └── validation.ts        # Zod schemas
+├── messages/
+│   ├── es.json              # Spanish translations
+│   └── en.json              # English translations
 ├── .env.example
-└── README.md
+└── LICENSE
 ```
 
 ---
 
 ## Deployment
 
-### Vercel (Recommended)
+### Vercel
 
 1. Push to GitHub
 2. Import the repository into Vercel
 3. Add environment variables in the Vercel dashboard
-4. Deploy to preview first, then promote to production
+4. Deploy — **note:** Vercel is serverless; `config/accounts.json` and `data/usage.json` require a persistent filesystem or an alternative storage backend (e.g., Upstash Redis) in this deployment model
 
-### Self-Hosted
+### Self-Hosted (Recommended for this project)
 
-This project can run anywhere Next.js 14 is supported.
+This project is optimized for self-hosted deployments (VPS, dedicated server) where a persistent filesystem is available.
 
-Minimum production recommendations:
+Minimum production requirements:
 
 - HTTPS enabled
-- Secrets managed outside the repo
-- Access controls for staff-only use
-- Logging/monitoring aligned with your privacy policy
+- `config/accounts.json` present and configured
+- Secrets managed outside the repository
+- Process manager (e.g., PM2) for uptime
 
 ---
 
-## Privacy & Security
+## Privacy & Security Notes
 
-- Images are processed for generation requests and are not intended to be stored server-side by the app
-- `.env` and secrets must remain outside version control
-- Input validation and API safeguards are implemented in the app
-- Review your hosting provider logs/retention settings before production rollout
-- Images sent to third-party AI providers are subject to their terms and policies
-
----
-
-## Legal Disclaimer (Patient-Facing Use)
-
-This software generates illustrative images using artificial intelligence for emotional and informational purposes only. **It is not a medical device**, does not provide diagnostic information, and must not be used for clinical decision-making. Generated images are artistic approximations and do not represent the actual appearance of the baby.
-
-Suggested disclaimer text for clinics:
-
-> "This image was generated by artificial intelligence based on your ultrasound. It is an artistic illustration for emotional purposes only and does not represent the actual appearance of your baby. It has no diagnostic value."
+- Ultrasound images are processed per request and are not intentionally stored server-side by this application
+- Images submitted to the OpenAI API are subject to OpenAI's data retention and privacy policies — review these before patient-facing deployment
+- All sensitive configuration (`config/accounts.json`, `.env`) is excluded from version control via `.gitignore`
+- Review your hosting provider's logging and retention settings before going live
 
 ---
 
-## © Code Ownership / Intellectual Property
+## Production Checklist
 
-Unless you explicitly publish a separate license, this repository should be treated as proprietary source code.
-
-Use the following notice (recommended) and replace the placeholder with your legal name or company name:
-
-```text
-Copyright (c) 2026 [YOUR LEGAL NAME OR COMPANY NAME]
-All rights reserved.
-```
-
-Recommended rights statement for this repository:
-
-- The source code, application logic, UI/UX assets, branding, and related materials are the intellectual property of the repository owner.
-- No license is granted to copy, modify, distribute, sublicense, sell, or deploy this code without prior written authorization from the owner.
-- Access to this private repository does not transfer ownership or grant reuse rights beyond what is explicitly agreed in writing.
-
-Important:
-
-- A README notice helps communicate intent, but for stronger legal clarity you should also add a dedicated `LICENSE` or proprietary notice file and (if needed) contributor/contractor IP assignment terms.
+- `npm run build` passes with no TypeScript errors
+- `config/accounts.json` configured with real 6-digit PINs
+- `OPENAI_API_KEY` set in production environment
+- Clinic branding variables configured (optional)
+- Medical disclaimer visible in the UI
+- HTTPS enabled on the deployment
+- Deployment tested with `MOCK_API=true` before enabling live generation
 
 ---
 
 ## Roadmap
 
-- [ ] Animated video from 4D scan
-- [ ] Before/after slider (ultrasound -> portrait)
-- [ ] Shareable patient link
+- [ ] Animated video portrait from 4D scan
+- [ ] Shareable patient link (time-limited)
 - [ ] Twin workflow support
 - [ ] Custom clinic watermark on downloads
+- [ ] Admin dashboard for usage analytics
 
 ---
 
-## Tech Stack
+## License
 
-- [Next.js 14](https://nextjs.org/) — App Router + TypeScript
-- [Tailwind CSS](https://tailwindcss.com/) — Styling
-- [OpenAI API](https://platform.openai.com/) — AI image generation
-- [sharp](https://sharp.pixelplumbing.com/) — Image preprocessing
-- [react-easy-crop](https://github.com/ValentinH/react-easy-crop) — Crop UI
-- [next-intl](https://next-intl.dev/) — Internationalization
-- [Zod](https://zod.dev/) — Validation
-
----
-
-## Production Checklist (Quick)
-
-- `npm run build` passes
-- Environment variables configured
-- Clinic branding reviewed
-- Legal disclaimer visible in UI
-- Deployment environment tested (preview/staging)
+Copyright (c) 2026. All rights reserved. See [LICENSE](./LICENSE) for details.
