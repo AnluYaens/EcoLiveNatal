@@ -82,6 +82,7 @@
     "darkImage": "The image is too dark. Try with better lighting.",
     "notUltrasound": "This image does not appear to be a 3D/4D ultrasound.",
     "generic": "An unexpected error occurred. Try again.",
+    "dailyLimitExceeded": "You have reached your daily generation limit. Try again tomorrow.",
     "retry": "Retry"
   },
   "pinGate": {
@@ -90,6 +91,7 @@
     "placeholder": "_ _ _ _",
     "button": "Enter",
     "error": "Incorrect PIN",
+    "accountLocked": "Too many incorrect attempts. Try again in {minutes} minutes.",
     "digitLabel": "PIN digit {n}",
     "noCode": "Didn't receive the code?"
   },

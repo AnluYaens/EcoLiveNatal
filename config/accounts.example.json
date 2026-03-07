@@ -1,0 +1,7 @@
+{
+  "accounts": [
+    { "id": "doctor-a", "pin": "000000", "name": "Dr. Apellido",  "dailyLimit": 100 },
+    { "id": "doctor-b", "pin": "000000", "name": "Dr. Apellido2", "dailyLimit": 10 },
+    { "id": "doctor-c", "pin": "000000", "name": "Dra. Apellido3","dailyLimit": 40 }
+  ]
+}
