@@ -82,6 +82,7 @@
     "darkImage": "La imagen es muy oscura. Intenta con mejor iluminación.",
     "notUltrasound": "Esta imagen no parece ser un ultrasonido 3D/4D.",
     "generic": "Ocurrió un error inesperado. Intenta de nuevo.",
+    "dailyLimitExceeded": "Has alcanzado el límite diario de generaciones. Intenta mañana.",
     "retry": "Reintentar"
   },
   "pinGate": {
@@ -90,6 +91,7 @@
     "placeholder": "_ _ _ _",
     "button": "Ingresar",
     "error": "PIN incorrecto",
+    "accountLocked": "Demasiados intentos incorrectos. Intenta en {minutes} minutos.",
     "digitLabel": "Dígito {n} del PIN",
     "noCode": "¿No recibiste el código?"
   },

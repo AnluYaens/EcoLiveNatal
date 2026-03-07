@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import ErrorMessage from '@/components/ErrorMessage';
-import { SESSION_KEY } from '@/components/PinGate';
+import { SESSION_KEY, ACCOUNT_ID_KEY } from '@/components/PinGate';
 
 interface GenerateStepProps {
   croppedBlob: Blob;
@@ -72,6 +72,7 @@ export default function GenerateStep({
       formData.append('creativity', '50');
       formData.append('skinTone', skinTone);
       formData.append('pin', sessionStorage.getItem(SESSION_KEY) ?? '');
+      formData.append('accountId', sessionStorage.getItem(ACCOUNT_ID_KEY) ?? '');
 
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -82,7 +83,8 @@ export default function GenerateStep({
       const data = (await res.json()) as ApiResponse;
 
       if (!res.ok || !data.image) {
-        setError(data.error ?? tErrors('generic'));
+        const errorKey = data.error === 'dailyLimitExceeded' ? 'dailyLimitExceeded' : 'generic';
+        setError(tErrors(errorKey));
         return;
       }
 

@@ -7,6 +7,7 @@ import { generatePortrait } from '@/lib/openaiClient';
 import { buildPrompt } from '@/lib/promptBuilder';
 import { GenerateSchema } from '@/lib/validation';
 import { MAX_FILE_SIZE_BYTES, SUPPORTED_MIME_TYPES } from '@/lib/constants';
+import * as accountStore from '@/lib/accountStore';
 
 // ⚠️ In-memory rate limiting — resets on each serverless cold start.
 // For production multi-instance deployments, replace with Redis/Upstash.
@@ -151,16 +152,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 3a. Validate PIN
+  // 3a. Validate PIN + account
   const pinRaw = formData.get('pin');
-  const accessPin = process.env.ACCESS_PIN;
+  const accountIdRaw = formData.get('accountId');
   console.log('Step 1: PIN check');
-  if (!accessPin || typeof pinRaw !== 'string' || pinRaw !== accessPin) {
+  if (typeof pinRaw !== 'string' || typeof accountIdRaw !== 'string') {
+    return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
+  }
+  const account = accountStore.findByPin(pinRaw);
+  if (!account || account.id !== accountIdRaw) {
+    return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
+  }
+
+  // 3b. Check daily limit
+  if (!accountStore.isWithinLimit(account.id)) {
     return NextResponse.json(
-      { error: 'Acceso no autorizado' },
-      { status: 403 }
+      { error: 'dailyLimitExceeded' },
+      { status: 429 }
     );
   }
+
+  // 3c. Increment usage before calling OpenAI (prevents race condition)
+  void accountStore.incrementUsage(account.id);
 
   const imageFile = formData.get('image');
   const styleRaw = formData.get('style');

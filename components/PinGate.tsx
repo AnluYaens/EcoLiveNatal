@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 
 const SESSION_KEY = 'ecln_pin';
+const ACCOUNT_ID_KEY = 'ecln_account_id';
 
 interface PinGateProps {
   onVerified: (pin: string) => void;
@@ -11,15 +12,18 @@ interface PinGateProps {
 
 export default function PinGate({ onVerified }: PinGateProps) {
   const t = useTranslations('pinGate');
-  const [digits, setDigits] = useState<string[]>(['', '', '', '']);
+  const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
+  const [lockMessage, setLockMessage] = useState('');
 
   const ref0 = useRef<HTMLInputElement>(null);
   const ref1 = useRef<HTMLInputElement>(null);
   const ref2 = useRef<HTMLInputElement>(null);
   const ref3 = useRef<HTMLInputElement>(null);
-  const inputRefs = [ref0, ref1, ref2, ref3];
+  const ref4 = useRef<HTMLInputElement>(null);
+  const ref5 = useRef<HTMLInputElement>(null);
+  const inputRefs = [ref0, ref1, ref2, ref3, ref4, ref5];
 
   const pin = digits.join('');
 
@@ -29,7 +33,7 @@ export default function PinGate({ onVerified }: PinGateProps) {
     newDigits[index] = digit;
     setDigits(newDigits);
     if (error) setError(false);
-    if (digit && index < 3) {
+    if (digit && index < 5) {
       inputRefs[index + 1].current?.focus();
     }
   };
@@ -38,45 +42,55 @@ export default function PinGate({ onVerified }: PinGateProps) {
     if (e.key === 'Backspace' && !digits[index] && index > 0) {
       inputRefs[index - 1].current?.focus();
     }
-    if (e.key === 'Enter' && pin.length === 4) {
+    if (e.key === 'Enter' && pin.length === 6) {
       handleSubmit(pin);
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
-    const newDigits = ['', '', '', ''];
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const newDigits = ['', '', '', '', '', ''];
     for (let i = 0; i < pasted.length; i++) {
       newDigits[i] = pasted[i];
     }
     setDigits(newDigits);
-    const nextFocus = Math.min(pasted.length, 3);
+    const nextFocus = Math.min(pasted.length, 5);
     inputRefs[nextFocus].current?.focus();
   };
 
   const handleSubmit = (currentPin?: string) => {
     const code = currentPin ?? pin;
-    if (code.length !== 4) return;
+    if (code.length !== 6) return;
 
     fetch('/api/verify-pin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin: code }),
     })
-      .then((res) => {
+      .then(async (res) => {
         if (res.ok) {
+          const data = (await res.json()) as { ok: boolean; accountId: string };
           sessionStorage.setItem(SESSION_KEY, code);
+          sessionStorage.setItem(ACCOUNT_ID_KEY, data.accountId);
           onVerified(code);
-        } else {
+        } else if (res.status === 429) {
+          const data = (await res.json()) as { error: string; minutes: number };
+          setLockMessage(t('accountLocked', { minutes: data.minutes }));
           setError(true);
-          setDigits(['', '', '', '']);
+          setShake(true);
+          setTimeout(() => setShake(false), 400);
+        } else {
+          setLockMessage('');
+          setError(true);
+          setDigits(['', '', '', '', '', '']);
           setShake(true);
           setTimeout(() => setShake(false), 400);
           ref0.current?.focus();
         }
       })
       .catch(() => {
+        setLockMessage('');
         setError(true);
         setShake(true);
         setTimeout(() => setShake(false), 400);
@@ -116,11 +130,11 @@ export default function PinGate({ onVerified }: PinGateProps) {
 
           {/* PIN circles */}
           <div
-            className={`flex gap-4 ${shake ? 'pin-shake' : ''}`}
+            className={`flex gap-2 ${shake ? 'pin-shake' : ''}`}
             onPaste={handlePaste}
           >
             {digits.map((digit, i) => (
-              <div key={i} className="relative w-14 h-14">
+              <div key={i} className="relative w-11 h-11">
                 <input
                   ref={inputRefs[i]}
                   type="password"
@@ -136,7 +150,7 @@ export default function PinGate({ onVerified }: PinGateProps) {
                 />
                 <div
                   className={[
-                    'w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 border-2',
+                    'w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 border-2',
                     error
                       ? 'bg-red-50 border-red-300'
                       : digit
@@ -145,7 +159,7 @@ export default function PinGate({ onVerified }: PinGateProps) {
                   ].join(' ')}
                 >
                   {digit && (
-                    <div className="w-3 h-3 rounded-full bg-white" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-white" />
                   )}
                 </div>
               </div>
@@ -153,12 +167,14 @@ export default function PinGate({ onVerified }: PinGateProps) {
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm -mt-2">{t('error')}</p>
+            <p className="text-red-500 text-sm -mt-2">
+              {lockMessage || t('error')}
+            </p>
           )}
 
           <button
             type="button"
-            disabled={pin.length !== 4}
+            disabled={pin.length !== 6}
             onClick={() => handleSubmit()}
             className="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-4 rounded-full transition-all duration-200 disabled:opacity-40"
           >
@@ -177,4 +193,4 @@ export default function PinGate({ onVerified }: PinGateProps) {
   );
 }
 
-export { SESSION_KEY };
+export { SESSION_KEY, ACCOUNT_ID_KEY };
