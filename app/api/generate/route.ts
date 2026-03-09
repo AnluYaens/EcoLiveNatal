@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 3b. Check daily limit
-  if (!accountStore.isWithinLimit(account.id)) {
+  if (!(await accountStore.isWithinLimit(account.id))) {
     return NextResponse.json(
       { error: 'dailyLimitExceeded' },
       { status: 429 }
