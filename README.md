@@ -6,6 +6,14 @@ AI-powered web application that transforms 3D/4D fetal ultrasound photos into ph
 
 ---
 
+## Demo
+
+[![Demo EcoLiveNatal](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=VIDEO_ID)
+
+> Replace `VIDEO_ID` in both URLs with your YouTube video ID before publishing.
+
+---
+
 ## Features
 
 - Mobile-first experience optimized for clinic staff (iOS, Android, desktop)
