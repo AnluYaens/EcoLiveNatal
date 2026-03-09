@@ -6,4 +6,3 @@ export const GenerateSchema = z.object({
   skinTone: z.enum(['normal', 'moreno']).default('normal'),
 });
 
-export type GenerateInput = z.infer<typeof GenerateSchema>;
