@@ -106,5 +106,82 @@
     "upload": "Upload",
     "history": "History",
     "settings": "Settings"
+  },
+  "landing": {
+    "nav": {
+      "process": "Process",
+      "results": "Results",
+      "faq": "FAQ",
+      "access": "Access"
+    },
+    "hero": {
+      "badge": "AI technology for ultrasounds",
+      "headline": "From ultrasound to your baby's portrait",
+      "subheadline": "We transform your ultrasound into a hyper-realistic image in seconds, using state-of-the-art AI.",
+      "ctaPrimary": "Request access",
+      "ctaSecondary": "I already have access"
+    },
+    "features": {
+      "title": "Why EcoLiveNatal?",
+      "precisionTitle": "Medical precision",
+      "precisionDesc": "We preserve the exact facial geometry of the original ultrasound for a faithful result.",
+      "speedTitle": "Results in seconds",
+      "speedDesc": "Generated in 20–40 seconds with state-of-the-art AI models.",
+      "privacyTitle": "Full privacy",
+      "privacyDesc": "Your image is never stored on our servers. Real-time processing only."
+    },
+    "process": {
+      "title": "How it works",
+      "subtitle": "A simple, clear, and frictionless process",
+      "step1Title": "Upload the ultrasound",
+      "step1Desc": "Drag or select your JPG, PNG, or HEIC image up to 10MB.",
+      "step2Title": "Crop the area",
+      "step2Desc": "Center the baby's face with our precise crop editor.",
+      "step3Title": "Generate the portrait",
+      "step3Desc": "AI transforms the ultrasound into a hyper-realistic portrait.",
+      "step4Title": "Download and share",
+      "step4Desc": "Download the image or share it directly via WhatsApp."
+    },
+    "results": {
+      "title": "Results",
+      "subtitle": "Direct before/after comparison. No manual retouching.",
+      "disclaimer": "AI-generated illustrative images. Not diagnostic.",
+      "placeholderNote": "Real examples coming soon",
+      "before": "Ultrasound",
+      "after": "AI Portrait"
+    },
+    "pricing": {
+      "title": "Per-session access",
+      "subtitle": "No subscriptions. Invitation-only controlled access.",
+      "badge": "Private invite-only access",
+      "badgeDesc": "Currently in controlled access. Request your personal access token via WhatsApp.",
+      "cta": "Request access"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "q1": "Are the results diagnostic?",
+      "a1": "No. Images are illustrative and AI-generated. They do not replace professional medical interpretation and have no diagnostic value.",
+      "q2": "What types of ultrasounds does it accept?",
+      "a2": "Works best with 3D/4D fetal face ultrasounds. Accepts JPG, PNG, and HEIC formats up to 10MB.",
+      "q3": "Are my images stored?",
+      "a3": "No. Images are processed in real time and are never stored on our servers.",
+      "q4": "How do I get access?",
+      "a4": "Contact us via WhatsApp to request your personal access token.",
+      "q5": "How long does generation take?",
+      "a5": "Between 20 and 40 seconds depending on image complexity."
+    },
+    "cta": {
+      "title": "Ready to see your baby?",
+      "subtitle": "Request access and transform your first ultrasound today.",
+      "button": "Chat on WhatsApp"
+    },
+    "footer": {
+      "rights": "All rights reserved.",
+      "disclaimer": "AI-generated images. Not diagnostic.",
+      "process": "Process",
+      "results": "Results",
+      "privacy": "Privacy",
+      "terms": "Terms"
+    }
   }
 }

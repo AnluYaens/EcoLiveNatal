@@ -106,5 +106,82 @@
     "upload": "Subir",
     "history": "Historial",
     "settings": "Ajustes"
+  },
+  "landing": {
+    "nav": {
+      "process": "Proceso",
+      "results": "Resultados",
+      "faq": "Preguntas",
+      "access": "Acceder"
+    },
+    "hero": {
+      "badge": "Tecnología de IA para ecografías",
+      "headline": "Del ultrasonido al retrato de tu bebé",
+      "subheadline": "Transformamos tu ecografía en una imagen hiperrealista en segundos, con IA de última generación.",
+      "ctaPrimary": "Solicitar acceso",
+      "ctaSecondary": "Ya tengo acceso"
+    },
+    "features": {
+      "title": "¿Por qué EcoLiveNatal?",
+      "precisionTitle": "Precisión médica",
+      "precisionDesc": "Preservamos la geometría facial exacta del ultrasonido original para un resultado fiel.",
+      "speedTitle": "Resultados en segundos",
+      "speedDesc": "Generación en 20–40 segundos con modelos de IA de última generación.",
+      "privacyTitle": "Privacidad total",
+      "privacyDesc": "Tu imagen nunca se almacena en nuestros servidores. Procesamiento en tiempo real."
+    },
+    "process": {
+      "title": "Cómo funciona",
+      "subtitle": "Un proceso simple, claro y sin fricciones",
+      "step1Title": "Sube la ecografía",
+      "step1Desc": "Arrastra o selecciona tu imagen JPG, PNG o HEIC de hasta 10MB.",
+      "step2Title": "Recorta el área",
+      "step2Desc": "Centra la cara del bebé con nuestro editor de recorte preciso.",
+      "step3Title": "Genera el retrato",
+      "step3Desc": "La IA transforma el ultrasonido en un retrato hiperrealista.",
+      "step4Title": "Descarga y comparte",
+      "step4Desc": "Descarga la imagen o compártela directamente por WhatsApp."
+    },
+    "results": {
+      "title": "Resultados",
+      "subtitle": "Comparativa directa antes/después. Sin retoque manual.",
+      "disclaimer": "Imágenes ilustrativas generadas por IA. No diagnósticas.",
+      "placeholderNote": "Próximamente ejemplos reales",
+      "before": "Ecografía",
+      "after": "Retrato IA"
+    },
+    "pricing": {
+      "title": "Acceso por sesión",
+      "subtitle": "Sin suscripciones. Acceso controlado por invitación.",
+      "badge": "Acceso privado por invitación",
+      "badgeDesc": "Actualmente en acceso controlado. Solicita tu token de acceso personal por WhatsApp.",
+      "cta": "Solicitar acceso"
+    },
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "q1": "¿Los resultados son diagnósticos?",
+      "a1": "No. Las imágenes son ilustrativas y generadas por IA. No reemplazan la interpretación médica profesional ni tienen valor diagnóstico.",
+      "q2": "¿Qué tipo de ecografías acepta?",
+      "a2": "Funciona mejor con ecografías 3D/4D de cara fetal. Acepta formatos JPG, PNG y HEIC de hasta 10MB.",
+      "q3": "¿Mis imágenes se almacenan?",
+      "a3": "No. Las imágenes se procesan en tiempo real y nunca se almacenan en nuestros servidores.",
+      "q4": "¿Cómo obtengo acceso?",
+      "a4": "Contáctanos por WhatsApp para solicitar tu token de acceso personal.",
+      "q5": "¿Cuánto tarda la generación?",
+      "a5": "Entre 20 y 40 segundos dependiendo de la complejidad de la imagen."
+    },
+    "cta": {
+      "title": "¿Listo para ver a tu bebé?",
+      "subtitle": "Solicita tu acceso y transforma tu primera ecografía hoy.",
+      "button": "Escribir por WhatsApp"
+    },
+    "footer": {
+      "rights": "Todos los derechos reservados.",
+      "disclaimer": "Imágenes generadas por IA. No diagnósticas.",
+      "process": "Proceso",
+      "results": "Resultados",
+      "privacy": "Privacidad",
+      "terms": "Términos"
+    }
   }
 }
