@@ -6,6 +6,9 @@ import LoadingOverlay from '@/components/LoadingOverlay';
 import ErrorMessage from '@/components/ErrorMessage';
 import { SESSION_KEY, ACCOUNT_ID_KEY } from '@/components/PinGate';
 
+type GenerationMode = 'portrait' | 'realistic';
+type ScanType = '3d4d' | '2d';
+
 interface GenerateStepProps {
   croppedBlob: Blob;
   onResult: (base64: string) => void;
@@ -29,6 +32,8 @@ export default function GenerateStep({
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [skinTone, setSkinTone] = useState<'normal' | 'moreno'>('normal');
+  const [mode, setMode] = useState<GenerationMode>('portrait');
+  const [scanType, setScanType] = useState<ScanType>('3d4d');
 
   useEffect(() => {
     const url = URL.createObjectURL(croppedBlob);
@@ -71,6 +76,8 @@ export default function GenerateStep({
       formData.append('style', 'ultra');
       formData.append('creativity', '50');
       formData.append('skinTone', skinTone);
+      formData.append('mode', mode);
+      formData.append('scanType', scanType);
       formData.append('token', sessionStorage.getItem(SESSION_KEY) ?? '');
       formData.append('accountId', sessionStorage.getItem(ACCOUNT_ID_KEY) ?? '');
 
@@ -136,7 +143,60 @@ export default function GenerateStep({
           <p className="text-sm text-text-secondary mt-2 max-w-xs mx-auto leading-relaxed">
             {tGenerate('confirmSubtitle')}
           </p>
-          <p className="text-xs text-text-secondary/60 mt-3">{tGenerate('estimatedTime')}</p>
+        </div>
+
+        {/* Generation mode selector */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-primary">{tGenerate('modeTitle')}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setMode('portrait')}
+              className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                mode === 'portrait'
+                  ? 'border-accent bg-accent/5'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <span className="text-2xl block mb-1">&#x1F476;</span>
+              <span className="text-sm font-semibold text-text-primary block">{tGenerate('modePortrait')}</span>
+              <span className="text-xs text-text-secondary block mt-0.5">{tGenerate('modePortraitDesc')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('realistic')}
+              className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                mode === 'realistic'
+                  ? 'border-accent bg-accent/5'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <span className="text-2xl block mb-1">&#x1F52C;</span>
+              <span className="text-sm font-semibold text-text-primary block">{tGenerate('modeRealistic')}</span>
+              <span className="text-xs text-text-secondary block mt-0.5">{tGenerate('modeRealisticDesc')}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Scan type toggle */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-primary">{tGenerate('scanTypeTitle')}</p>
+          <div className="inline-flex rounded-xl overflow-hidden border border-gray-200">
+            {(['2d', '3d4d'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setScanType(type)}
+                className={`px-5 py-2 text-sm font-medium transition-colors ${
+                  scanType === type
+                    ? 'bg-accent text-white'
+                    : 'bg-white text-text-secondary hover:bg-gray-50'
+                }`}
+              >
+                {tGenerate(type === '2d' ? 'scan2d' : 'scan3d4d')}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Skin tone selector */}
@@ -159,6 +219,8 @@ export default function GenerateStep({
             ))}
           </div>
         </div>
+
+        <p className="text-xs text-text-secondary/60">{tGenerate('estimatedTime')}</p>
       </div>
 
       {error && (
