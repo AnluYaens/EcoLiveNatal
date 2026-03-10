@@ -152,20 +152,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 3a. Validate PIN + account
-  const pinRaw = formData.get('pin');
+  // 3a. Validate token + account
+  const tokenRaw = formData.get('token');
   const accountIdRaw = formData.get('accountId');
-  console.log('Step 1: PIN check');
-  if (typeof pinRaw !== 'string' || typeof accountIdRaw !== 'string') {
+  console.log('Step 1: Token check');
+  if (typeof tokenRaw !== 'string' || typeof accountIdRaw !== 'string') {
     return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
   }
-  const account = accountStore.findByPin(pinRaw);
+  const account = await accountStore.findByToken(tokenRaw);
   if (!account || account.id !== accountIdRaw) {
     return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
   }
 
   // 3b. Check daily limit
-  if (!(await accountStore.isWithinLimit(account.id))) {
+  if (!(await accountStore.isWithinLimit(account.id, account.dailyLimit))) {
     return NextResponse.json(
       { error: 'dailyLimitExceeded' },
       { status: 429 }

@@ -86,14 +86,15 @@
     "retry": "Reintentar"
   },
   "pinGate": {
-    "title": "Ingresa el PIN de acceso",
-    "subtitle": "Introduce el código para continuar",
-    "placeholder": "_ _ _ _",
+    "title": "Acceso profesional",
+    "subtitle": "Ingresa el token que recibiste",
+    "label": "TOKEN DE ACCESO",
+    "placeholder": "Pegar token aquí...",
+    "example": "Ej: 550e8400-e29b-41d4-a716-446655440000",
     "button": "Ingresar",
-    "error": "PIN incorrecto",
-    "accountLocked": "Demasiados intentos incorrectos. Intenta en {minutes} minutos.",
-    "digitLabel": "Dígito {n} del PIN",
-    "noCode": "¿No recibiste el código?"
+    "error": "Token incorrecto",
+    "accountLocked": "Demasiados intentos. Intenta en {minutes} minutos.",
+    "noCode": "¿No tienes token? Solicítalo aquí"
   },
   "disclaimer": {
     "text": "⚕️ Imagen ilustrativa generada por IA. No es diagnóstica. El resultado es una aproximación artística y no representa con exactitud al bebé real.",

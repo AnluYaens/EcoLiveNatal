@@ -3,11 +3,11 @@ import { z } from 'zod';
 import * as accountStore from '@/lib/accountStore';
 import { isLocked, recordFailedAttempt, clearAttempts } from '@/lib/bruteForce';
 
-const PinSchema = z.object({
-  pin: z.string().length(6).regex(/^\d{6}$/),
+const TokenSchema = z.object({
+  token: z.string().uuid(),
 });
 
-// Global rate limit — caps total PIN attempts across all IPs
+// Global rate limit — caps total token attempts across all IPs
 const GLOBAL_RATE_LIMIT = 30;
 const GLOBAL_RATE_WINDOW_MS = 60_000;
 // Delay added to every failed attempt to slow distributed attacks
@@ -63,16 +63,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
 
-  // 4. Validate PIN format
-  const parsed = PinSchema.safeParse(body);
+  // 4. Validate token format (UUID)
+  const parsed = TokenSchema.safeParse(body);
   if (!parsed.success) {
     recordFailedAttempt(ip);
     await delay(FAIL_DELAY_MS);
     return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
   }
 
-  // 5. Look up account
-  const account = accountStore.findByPin(parsed.data.pin);
+  // 5. Look up account by token
+  const account = await accountStore.findByToken(parsed.data.token);
   if (!account) {
     recordFailedAttempt(ip);
     await delay(FAIL_DELAY_MS);
@@ -81,5 +81,5 @@ export async function POST(req: NextRequest) {
 
   // 6. Success — clear brute-force attempts
   clearAttempts(ip);
-  return NextResponse.json({ ok: true, accountId: account.id });
+  return NextResponse.json({ ok: true, accountId: account.id, dailyLimit: account.dailyLimit });
 }

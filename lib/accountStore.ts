@@ -1,76 +1,65 @@
-import fs from 'fs';
-import path from 'path';
 import { getTodayUsage, incrementUsage } from './usageStore';
 
 export interface Account {
   id: string;
-  pin: string;
   name: string;
   dailyLimit: number; // 0 = unlimited
 }
 
-interface AccountsConfig {
-  accounts: Account[];
+interface TokenData {
+  id: string;
+  name: string;
+  dailyLimit: number;
 }
 
-const CONFIG_PATH = path.join(process.cwd(), 'config', 'accounts.json');
-
-// Module-level cache
-let accountsCache: Account[] | null = null;
-
-function parseAndValidate(config: AccountsConfig): Account[] {
-  const pins = config.accounts.map((a) => a.pin);
-  const uniquePins = new Set(pins);
-  if (uniquePins.size !== pins.length) {
-    throw new Error('accounts.json contains duplicate PINs — fix before proceeding');
-  }
-  return config.accounts;
+async function getRedis() {
+  const { Redis } = await import('@upstash/redis');
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
 }
 
-function loadAccounts(): Account[] {
-  if (accountsCache) return accountsCache;
-
-  // 1. File on disk (local / self-hosted)
-  if (fs.existsSync(CONFIG_PATH)) {
-    const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-    accountsCache = parseAndValidate(JSON.parse(raw) as AccountsConfig);
-    return accountsCache;
+export async function findByToken(token: string): Promise<Account | null> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) {
+    return null;
   }
 
-  // 2. ACCOUNTS_JSON env var (Vercel / serverless)
-  const accountsJson = process.env.ACCOUNTS_JSON;
-  if (accountsJson) {
-    accountsCache = parseAndValidate(JSON.parse(accountsJson) as AccountsConfig);
-    return accountsCache;
-  }
+  const redis = await getRedis();
+  const redisKey = `ecln:token:${token}`;
+  const raw = await redis.get<TokenData | string>(redisKey);
 
-  // 3. Legacy fallback: single account from ACCESS_PIN env var
-  const pin = process.env.ACCESS_PIN ?? '';
-  if (!pin) return [];
-  accountsCache = [{ id: 'default', pin, name: 'Default', dailyLimit: 0 }];
-  return accountsCache;
+  if (!raw) return null;
+
+  // Handle both parsed object and raw string from Redis
+  const data: TokenData = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+  return {
+    id: data.id,
+    name: data.name,
+    dailyLimit: data.dailyLimit,
+  };
 }
 
-export function findByPin(pin: string): Account | null {
-  const accounts = loadAccounts();
-  return accounts.find((a) => a.pin === pin) ?? null;
+export async function findById(accountId: string): Promise<Account | null> {
+  // For limit checks we need to scan — but we already have the account data
+  // from the initial token lookup, so this is only used for isWithinLimit.
+  // We store account data in the token, so we can't look up by ID without
+  // knowing the token. Instead, store a reverse mapping.
+  if (!process.env.UPSTASH_REDIS_REST_URL) return null;
+
+  const redis = await getRedis();
+  const raw = await redis.get<TokenData | string>(`ecln:account:${accountId}`);
+  if (!raw) return null;
+
+  const data: TokenData = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  return { id: data.id, name: data.name, dailyLimit: data.dailyLimit };
 }
 
-export function findById(id: string): Account | null {
-  const accounts = loadAccounts();
-  return accounts.find((a) => a.id === id) ?? null;
-}
-
-export async function getTodayAccountUsage(accountId: string): Promise<number> {
-  return getTodayUsage(accountId);
-}
-
-export async function isWithinLimit(accountId: string): Promise<boolean> {
-  const account = findById(accountId);
-  if (!account) return false;
-  if (account.dailyLimit === 0) return true; // unlimited
+export async function isWithinLimit(accountId: string, dailyLimit: number): Promise<boolean> {
+  if (dailyLimit === 0) return true; // unlimited
   const usage = await getTodayUsage(accountId);
-  return usage < account.dailyLimit;
+  return usage < dailyLimit;
 }
 
 export { incrementUsage };

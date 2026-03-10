@@ -71,7 +71,7 @@ export default function GenerateStep({
       formData.append('style', 'ultra');
       formData.append('creativity', '50');
       formData.append('skinTone', skinTone);
-      formData.append('pin', sessionStorage.getItem(SESSION_KEY) ?? '');
+      formData.append('token', sessionStorage.getItem(SESSION_KEY) ?? '');
       formData.append('accountId', sessionStorage.getItem(ACCOUNT_ID_KEY) ?? '');
 
       const res = await fetch('/api/generate', {
