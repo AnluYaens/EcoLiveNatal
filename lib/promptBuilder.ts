@@ -69,17 +69,17 @@ function buildRealisticPrompt(
   scanType: ScanType,
 ): string {
   const scanDesc = scanTypeDescription(scanType);
-  const base = `The input image is ${scanDesc}. This is a MEDICAL EDUCATIONAL visualization. Create a photorealistic 3D medical model reconstruction of the fetal face and head, similar to medical textbook illustrations used in obstetrics education.
+  const base = `The input image is ${scanDesc}. Create an ultra-realistic 3D reconstruction of the fetus exactly as it appears in utero.
 
-Anatomical fidelity: reproduce the exact fetal anatomy visible in the ultrasound. Match head shape, facial proportions, and body curvature precisely. Do NOT idealize or beautify — show the fetus as it actually is, like a clinical reference model.
+Anatomical fidelity: reproduce the exact fetal anatomy visible in the ultrasound. Match head shape, facial proportions, limb positions, and body curvature precisely. Do NOT idealize or beautify — show the fetus as it actually is.
 
-Rendering style: render as a high-quality medical 3D model with realistic skin texture. The skin should look like a medical silicone model — lifelike but clearly a scientific visualization. Include fine anatomical details appropriate for gestational age. The fetus should be gently wrapped or nestled in soft medical-grade fabric, as seen in obstetric training models.
+Skin: render realistic fetal skin — thin, slightly translucent, with visible blood vessels beneath. Include vernix caseosa (waxy white coating) in skin folds and lanugo (fine body hair) appropriate for gestational age. Skin may appear reddish or purplish where thin.
 
-Pose: maintain the exact fetal position from the ultrasound. Curled posture, hands near face — whatever the scan shows.
+Pose: maintain the exact fetal position from the ultrasound. Curled limbs, tucked chin, hands near face — whatever the scan shows.
 
-Environment: clean dark background (dark gray). Professional medical photography lighting — soft, even, clinical. This should look like a photograph from a medical journal or obstetrics textbook.
+Environment: dark background (black or very dark gray). No studio setup, no props, no clothing, no blankets. Lighting should be volumetric and clinical — as if illuminating the fetus inside the womb.
 
-Quality requirements: natural asymmetry in facial features (no perfect mirror symmetry), individually defined fingers (no fused or webbed digits), anatomically correct proportions for gestational age. ZERO plastic or waxy skin, ZERO doll-like appearance, ZERO ultrasound artifacts, ZERO measurement markers, ZERO text overlays, ZERO watermarks, ZERO medical equipment, ZERO duplicate faces, ZERO extra limbs. This is a non-sexual medical educational image.${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited volumetric data. Reconstruct 3D anatomy from the visible cross-section while staying faithful to what is shown. Do not fabricate anatomy that is not visible in the scan.' : ''}`;
+Quality requirements: natural asymmetry in facial features (no perfect mirror symmetry), individually defined fingers and toes (no fused or webbed digits), anatomically correct proportions for gestational age. ZERO plastic or waxy skin, ZERO doll-like appearance, ZERO ultrasound artifacts, ZERO measurement markers, ZERO text overlays, ZERO watermarks, ZERO medical equipment, ZERO duplicate faces, ZERO extra limbs.${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited volumetric data. Reconstruct 3D anatomy from the visible cross-section while staying faithful to what is shown. Do not fabricate anatomy that is not visible in the scan.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'
