@@ -42,7 +42,11 @@ Likeness requirement: this is a portrait of a SPECIFIC baby — not a generic ne
 
 Pose requirement: match the exact head orientation from the ultrasound. If the scan shows a profile or 3/4 view, the portrait must show the same profile or 3/4 angle — never convert a profile view into a frontal view.
 
-Render with soft natural studio lighting, neutral or soft pastel background, photorealistic newborn skin texture. No text, no logos, no watermarks, no medical equipment, no ultrasound artifacts, no extra objects.${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited geometric detail. Infer 3D facial structure from the visible cross-section while maintaining fidelity to what is shown. Do not invent features that are not visible.' : ''}`;
+Render with soft natural studio lighting, neutral or soft pastel background.
+
+Skin texture: real newborn skin with fine peach fuzz, tiny pores visible at close inspection, natural color variation (slightly redder on cheeks, paler on forehead), soft mottling. NOT airbrushed, NOT plastic, NOT porcelain.
+
+Quality requirements: natural asymmetry in facial features (no perfect mirror symmetry), individually defined fingers (no fused or webbed digits), anatomically correct ear placement and detail, realistic newborn skin imperfections (milia, stork bites acceptable). ZERO plastic or waxy skin, ZERO doll-like eyes, ZERO uncanny valley smoothness, ZERO extra limbs or fingers, ZERO text, ZERO logos, ZERO watermarks, ZERO medical equipment, ZERO ultrasound artifacts.${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited geometric detail. Infer 3D facial structure from the visible cross-section while maintaining fidelity to what is shown. Do not invent features that are not visible.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'
@@ -75,7 +79,7 @@ Pose: maintain the exact fetal position from the ultrasound. Curled limbs, tucke
 
 Environment: dark background (black or very dark gray). No studio setup, no props, no clothing, no blankets. Lighting should be volumetric and clinical — as if illuminating the fetus inside the womb.
 
-ZERO ultrasound artifacts, ZERO measurement markers, ZERO text overlays, ZERO watermarks, ZERO medical equipment, ZERO duplicate faces, ZERO extra limbs.${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited volumetric data. Reconstruct 3D anatomy from the visible cross-section while staying faithful to what is shown. Do not fabricate anatomy that is not visible in the scan.' : ''}`;
+Quality requirements: natural asymmetry in facial features (no perfect mirror symmetry), individually defined fingers and toes (no fused or webbed digits), anatomically correct proportions for gestational age. ZERO plastic or waxy skin, ZERO doll-like appearance, ZERO ultrasound artifacts, ZERO measurement markers, ZERO text overlays, ZERO watermarks, ZERO medical equipment, ZERO duplicate faces, ZERO extra limbs.${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited volumetric data. Reconstruct 3D anatomy from the visible cross-section while staying faithful to what is shown. Do not fabricate anatomy that is not visible in the scan.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'

@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
 
     // 8. Generate with 60s timeout
     console.log('Step 6: Calling OpenAI');
-    const base64 = await Promise.race([
+    const rawBase64 = await Promise.race([
       generatePortrait(processed, prompt),
       new Promise<never>((_, reject) =>
         setTimeout(
@@ -275,6 +275,24 @@ export async function POST(req: NextRequest) {
         )
       ),
     ]);
+
+    // 9. Post-processing: light sharpening + mode-specific color grading
+    console.log('Step 7: Post-processing');
+    const rawBuffer = Buffer.from(rawBase64, 'base64');
+    let postProcessed = sharp(rawBuffer);
+
+    // Light sharpening for detail
+    postProcessed = postProcessed.sharpen({ sigma: 0.8, m1: 0.5, m2: 0.3 });
+
+    // Mode-specific color grading
+    if (mode === 'portrait') {
+      // Warm shift for portrait mode
+      postProcessed = postProcessed.modulate({ brightness: 1.02, saturation: 1.05 });
+    }
+    // Realistic mode: no color shift (keep clinical/neutral)
+
+    const finalBuffer = await postProcessed.png().toBuffer();
+    const base64 = finalBuffer.toString('base64');
 
     if (ENABLE_SESSION_IMAGE_CACHE && requestFingerprint) {
       setCachedImage(requestFingerprint, base64);
