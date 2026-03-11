@@ -22,31 +22,49 @@ export default function StepProgress({ currentStep }: StepProgressProps) {
   const currentIndex = STEP_INDEX[currentStep];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-t border-gray-100 py-3 px-6">
-      <div className="flex items-start justify-center gap-0 max-w-xs mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-t border-gray-100 py-3 px-6">
+      <div className="flex items-center justify-center max-w-xs mx-auto">
         {STEP_KEYS.map((key, i) => {
-          const filled = i <= currentIndex;
-          const lineActive = i > 0 && i <= currentIndex;
+          const isCompleted = i < currentIndex;
+          const isCurrent = i === currentIndex;
 
           return (
-            <div key={key} className="flex items-start">
-              {/* Connecting line (except before first dot) */}
+            <div key={key} className="flex items-center">
+              {/* Connecting line (before each dot except the first) */}
               {i > 0 && (
                 <div
-                  className={`h-px w-10 mt-[5px] transition-colors duration-300 ${
-                    lineActive ? "bg-accent" : "bg-gray-200"
+                  className={`h-0.5 w-8 sm:w-12 transition-colors duration-300 ${
+                    i <= currentIndex ? "bg-accent" : "bg-gray-200"
                   }`}
                 />
               )}
 
-              {/* Dot + label */}
-              <div className="flex flex-col items-center gap-1">
+              {/* Circle + label */}
+              <div className="flex flex-col items-center gap-1.5">
                 <div
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    filled ? "bg-accent" : "bg-transparent border border-accent"
+                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 text-xs font-bold ${
+                    isCompleted
+                      ? "bg-accent text-white"
+                      : isCurrent
+                        ? "bg-accent text-white ring-4 ring-accent/20"
+                        : "bg-transparent border-2 border-gray-300 text-gray-400"
                   }`}
-                />
-                <span className="text-[10px] text-text-secondary leading-none whitespace-nowrap">
+                >
+                  {isCompleted ? (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span>{i + 1}</span>
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] leading-none whitespace-nowrap transition-colors duration-300 ${
+                    i <= currentIndex
+                      ? "text-accent font-semibold"
+                      : "text-text-secondary"
+                  }`}
+                >
                   {t(key)}
                 </span>
               </div>

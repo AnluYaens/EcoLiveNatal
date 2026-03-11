@@ -10,7 +10,7 @@ export default function BrandHeader() {
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
   return (
-    <header className="w-full px-5 py-3.5 flex items-center justify-between border-b border-gray-100 bg-white">
+    <header className="w-full px-5 py-3 flex items-center justify-between bg-white/90 backdrop-blur-md border-b border-gray-100/80 sticky top-0 z-40">
       {CLINIC_LOGO ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -19,9 +19,9 @@ export default function BrandHeader() {
           className="h-8 object-contain"
         />
       ) : (
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-accent-light flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-accent" fill="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center flex-shrink-0 shadow-sm">
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/>
             </svg>
           </div>
@@ -34,7 +34,7 @@ export default function BrandHeader() {
 
       <button
         type="button"
-        className="w-8 h-8 rounded-full flex items-center justify-center text-text-secondary hover:bg-gray-100 transition-colors"
+        className="w-9 h-9 rounded-xl flex items-center justify-center text-text-secondary hover:bg-gray-100 transition-colors border border-gray-100"
         aria-label="Info"
         onClick={() => setDisclaimerOpen(true)}
       >

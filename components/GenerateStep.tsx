@@ -8,6 +8,16 @@ import { SESSION_KEY, ACCOUNT_ID_KEY } from '@/components/PinGate';
 
 type GenerationMode = 'portrait' | 'realistic';
 type ScanType = '3d4d' | '2d';
+type AnatomicalRegion = 'face' | 'heart' | 'brain' | 'spine' | 'abdomen' | 'fullBody';
+
+const REGIONS: ReadonlyArray<{ key: AnatomicalRegion; emoji: string; labelKey: string; descKey: string }> = [
+  { key: 'face', emoji: '\u{1F476}', labelKey: 'regionFace', descKey: 'regionFaceDesc' },
+  { key: 'heart', emoji: '\u{2764}\u{FE0F}', labelKey: 'regionHeart', descKey: 'regionHeartDesc' },
+  { key: 'brain', emoji: '\u{1F9E0}', labelKey: 'regionBrain', descKey: 'regionBrainDesc' },
+  { key: 'spine', emoji: '\u{1F9B4}', labelKey: 'regionSpine', descKey: 'regionSpineDesc' },
+  { key: 'abdomen', emoji: '\u{1FA7A}', labelKey: 'regionAbdomen', descKey: 'regionAbdomenDesc' },
+  { key: 'fullBody', emoji: '\u{1F52C}', labelKey: 'regionFullBody', descKey: 'regionFullBodyDesc' },
+];
 
 interface GenerateStepProps {
   croppedBlob: Blob;
@@ -34,12 +44,23 @@ export default function GenerateStep({
   const [skinTone, setSkinTone] = useState<'normal' | 'moreno'>('normal');
   const [mode, setMode] = useState<GenerationMode>('portrait');
   const [scanType, setScanType] = useState<ScanType>('3d4d');
+  const [anatomicalRegion, setAnatomicalRegion] = useState<AnatomicalRegion>('face');
+  const [clinicalNotes, setClinicalNotes] = useState('');
+
+  const portraitDisabled = anatomicalRegion !== 'face';
 
   useEffect(() => {
     const url = URL.createObjectURL(croppedBlob);
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [croppedBlob]);
+
+  const handleRegionChange = (region: AnatomicalRegion) => {
+    setAnatomicalRegion(region);
+    if (region !== 'face' && mode === 'portrait') {
+      setMode('realistic');
+    }
+  };
 
   const compressBlob = async (blob: Blob): Promise<Blob> => {
     const MAX_DIM = 1280;
@@ -78,6 +99,8 @@ export default function GenerateStep({
       formData.append('skinTone', skinTone);
       formData.append('mode', mode);
       formData.append('scanType', scanType);
+      formData.append('anatomicalRegion', anatomicalRegion);
+      formData.append('clinicalNotes', clinicalNotes);
       formData.append('token', sessionStorage.getItem(SESSION_KEY) ?? '');
       formData.append('accountId', sessionStorage.getItem(ACCOUNT_ID_KEY) ?? '');
 
@@ -114,7 +137,7 @@ export default function GenerateStep({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors text-text-primary"
+          className="w-9 h-9 rounded-full flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 transition-colors text-text-primary shadow-sm"
           onClick={onBack}
           aria-label={tGenerate('back')}
         >
@@ -130,18 +153,66 @@ export default function GenerateStep({
       {/* Crop preview + confirmation text */}
       <div className="text-center space-y-4">
         {previewUrl && (
-          <img
-            src={previewUrl}
-            alt=""
-            className="max-w-48 w-full rounded-xl mx-auto shadow-md"
-          />
+          <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 inline-block mx-auto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt=""
+              className="max-w-44 w-full rounded-xl"
+            />
+          </div>
         )}
         <div>
-          <h3 className="text-2xl font-bold text-text-primary">
+          <h3 className="text-xl font-bold text-text-primary">
             {tGenerate('confirmTitle')}
           </h3>
-          <p className="text-sm text-text-secondary mt-2 max-w-xs mx-auto leading-relaxed">
+          <p className="text-sm text-text-secondary mt-1.5 max-w-xs mx-auto leading-relaxed">
             {tGenerate('confirmSubtitle')}
+          </p>
+        </div>
+
+        {/* Anatomical region selector */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-primary">{tGenerate('regionTitle')}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {REGIONS.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                onClick={() => handleRegionChange(r.key)}
+                className={`p-3 rounded-2xl border-2 text-center transition-all ${
+                  anatomicalRegion === r.key
+                    ? 'border-accent bg-accent/5'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <span className="text-xl block mb-0.5">{r.emoji}</span>
+                <span className="text-xs font-semibold text-text-primary block leading-tight">
+                  {tGenerate(r.labelKey)}
+                </span>
+                <span className="text-[10px] text-text-secondary block mt-0.5 leading-tight">
+                  {tGenerate(r.descKey)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Clinical notes */}
+        <div className="space-y-1.5 text-left">
+          <label className="text-sm font-medium text-text-primary block">
+            {tGenerate('clinicalNotesLabel')}
+          </label>
+          <textarea
+            value={clinicalNotes}
+            onChange={(e) => setClinicalNotes(e.target.value.slice(0, 200))}
+            maxLength={200}
+            rows={2}
+            placeholder={tGenerate('clinicalNotesPlaceholder')}
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+          />
+          <p className="text-[10px] text-text-secondary/60 text-right">
+            {clinicalNotes.length}/200
           </p>
         </div>
 
@@ -151,16 +222,21 @@ export default function GenerateStep({
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setMode('portrait')}
+              onClick={() => !portraitDisabled && setMode('portrait')}
+              disabled={portraitDisabled}
               className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                mode === 'portrait'
-                  ? 'border-accent bg-accent/5'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                portraitDisabled
+                  ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                  : mode === 'portrait'
+                    ? 'border-accent bg-accent/5'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
               }`}
             >
               <span className="text-2xl block mb-1">&#x1F476;</span>
               <span className="text-sm font-semibold text-text-primary block">{tGenerate('modePortrait')}</span>
-              <span className="text-xs text-text-secondary block mt-0.5">{tGenerate('modePortraitDesc')}</span>
+              <span className="text-xs text-text-secondary block mt-0.5">
+                {portraitDisabled ? tGenerate('portraitDisabledHint') : tGenerate('modePortraitDesc')}
+              </span>
             </button>
             <button
               type="button"
@@ -181,16 +257,16 @@ export default function GenerateStep({
         {/* Scan type toggle */}
         <div className="space-y-2">
           <p className="text-sm font-medium text-text-primary">{tGenerate('scanTypeTitle')}</p>
-          <div className="inline-flex rounded-xl overflow-hidden border border-gray-200">
+          <div className="inline-flex rounded-full overflow-hidden border border-gray-200 bg-gray-50 p-0.5">
             {(['2d', '3d4d'] as const).map((type) => (
               <button
                 key={type}
                 type="button"
                 onClick={() => setScanType(type)}
-                className={`px-5 py-2 text-sm font-medium transition-colors ${
+                className={`px-5 py-2 text-sm font-medium transition-all rounded-full ${
                   scanType === type
-                    ? 'bg-accent text-white'
-                    : 'bg-white text-text-secondary hover:bg-gray-50'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 {tGenerate(type === '2d' ? 'scan2d' : 'scan3d4d')}
@@ -202,16 +278,16 @@ export default function GenerateStep({
         {/* Skin tone selector */}
         <div className="space-y-2">
           <p className="text-sm font-medium text-text-primary">{tGenerate('skinToneLabel')}</p>
-          <div className="inline-flex rounded-xl overflow-hidden border border-gray-200">
+          <div className="inline-flex rounded-full overflow-hidden border border-gray-200 bg-gray-50 p-0.5">
             {(['normal', 'moreno'] as const).map((tone) => (
               <button
                 key={tone}
                 type="button"
                 onClick={() => setSkinTone(tone)}
-                className={`px-5 py-2 text-sm font-medium transition-colors ${
+                className={`px-5 py-2 text-sm font-medium transition-all rounded-full ${
                   skinTone === tone
-                    ? 'bg-accent text-white'
-                    : 'bg-white text-text-secondary hover:bg-gray-50'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 {tGenerate(tone === 'normal' ? 'skinToneNormal' : 'skinToneMoreno')}
@@ -229,10 +305,13 @@ export default function GenerateStep({
 
       <button
         type="button"
-        className="w-full bg-accent hover:bg-accent-hover text-white font-bold py-5 text-lg rounded-full transition-all duration-200 disabled:opacity-50"
+        className="w-full bg-accent hover:bg-accent-hover text-white font-bold py-4 text-lg rounded-full transition-all duration-200 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
         onClick={handleGenerate}
         disabled={loading}
       >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
         {tGenerate('button')}
       </button>
 

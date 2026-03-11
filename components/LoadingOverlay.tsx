@@ -30,16 +30,24 @@ export default function LoadingOverlay({ visible }: LoadingOverlayProps) {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-5 mx-4 w-full max-w-xs">
-        <div className="w-12 h-12 border-4 border-gray-200 border-t-accent rounded-full animate-spin" />
+    <div className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex items-center justify-center">
+      <div className="bg-white rounded-3xl p-10 shadow-2xl flex flex-col items-center gap-6 mx-4 w-full max-w-xs border border-gray-100">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-4 border-accent/10" />
+          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-accent animate-spin" />
+          <div className="absolute inset-3 rounded-full bg-accent/5 flex items-center justify-center">
+            <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+        </div>
         <p
           key={messageIndex}
-          className="text-lg font-medium text-text-primary text-center"
+          className="text-lg font-semibold text-text-primary text-center"
         >
           {loadingMessages[messageIndex]}
         </p>
-        <p className="text-sm text-text-secondary">{t('estimatedTime')}</p>
+        <p className="text-sm text-text-secondary/70">{t('estimatedTime')}</p>
       </div>
     </div>
   );

@@ -210,15 +210,15 @@ export default function ResultStep({
       </div>
 
       {/* Result image */}
-      <div className="rounded-2xl overflow-hidden shadow-lg ring-4 ring-white">
-        <div className="border-b border-white/60 bg-background px-3 py-2">
-          <div className="grid grid-cols-3 gap-2">
+      <div className="rounded-2xl overflow-hidden shadow-lg bg-white">
+        <div className="px-3 py-2.5">
+          <div className="grid grid-cols-3 gap-1.5 bg-gray-100 rounded-full p-1">
             <button
               type="button"
-              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+              className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
                 effectiveViewMode === 'eco'
-                  ? 'bg-accent text-white'
-                  : 'bg-white text-text-primary border border-gray-200'
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               onClick={() => setViewMode('eco')}
               disabled={!beforeUrl}
@@ -227,10 +227,10 @@ export default function ResultStep({
             </button>
             <button
               type="button"
-              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+              className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
                 effectiveViewMode === 'result'
-                  ? 'bg-accent text-white'
-                  : 'bg-white text-text-primary border border-gray-200'
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               onClick={() => setViewMode('result')}
             >
@@ -238,10 +238,10 @@ export default function ResultStep({
             </button>
             <button
               type="button"
-              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+              className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
                 effectiveViewMode === 'split'
-                  ? 'bg-accent text-white'
-                  : 'bg-white text-text-primary border border-gray-200'
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
               }`}
               onClick={() => setViewMode('split')}
               disabled={!beforeUrl}
@@ -275,7 +275,7 @@ export default function ResultStep({
           )}
 
           {effectiveViewMode === 'split' && beforeUrl && (
-            <div className="grid h-full grid-cols-2 gap-1 bg-background p-1">
+            <div className="grid h-full grid-cols-2 gap-1 bg-gray-100 p-1">
               <div className="relative overflow-hidden rounded-xl">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -283,7 +283,7 @@ export default function ResultStep({
                   alt={beforeLabel}
                   className="h-full w-full object-cover"
                 />
-                <div className="pointer-events-none absolute left-2 top-2 rounded-lg bg-white/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
+                <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-text-primary shadow-sm">
                   {t('eco')}
                 </div>
               </div>
@@ -295,7 +295,7 @@ export default function ResultStep({
                   alt={afterLabel}
                   className="h-full w-full object-cover"
                 />
-                <div className="pointer-events-none absolute right-2 top-2 rounded-lg bg-white/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
+                <div className="pointer-events-none absolute right-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-text-primary shadow-sm">
                   {t('result')}
                 </div>
               </div>
@@ -313,24 +313,24 @@ export default function ResultStep({
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
-          className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+          className="bg-accent rounded-2xl p-4 flex flex-col items-center gap-2.5 shadow-sm hover:bg-accent-hover transition-all duration-200"
           onClick={handleDownload}
         >
-          <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-            <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
           </div>
-          <span className="text-sm font-medium text-text-primary">{downloadLabel}</span>
+          <span className="text-sm font-medium text-white">{downloadLabel}</span>
         </button>
 
         <button
           type="button"
-          className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+          className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2.5 shadow-sm hover:shadow-md hover:border-green-200 transition-all duration-200"
           onClick={handleWhatsApp}
         >
-          <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-            <svg className="w-5 h-5 text-accent" fill="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
+            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
               <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.531 5.849L.058 23.447a.75.75 0 00.918.964l5.878-1.537A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.75 9.75 0 01-4.964-1.356l-.355-.212-3.69.965.982-3.589-.232-.369A9.75 9.75 0 0112 2.25c5.385 0 9.75 4.365 9.75 9.75S17.385 21.75 12 21.75z" />
             </svg>
@@ -340,11 +340,11 @@ export default function ResultStep({
 
         <button
           type="button"
-          className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+          className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2.5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200"
           onClick={onRegenerate}
         >
-          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
-            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
+            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </div>
@@ -353,7 +353,7 @@ export default function ResultStep({
 
         <button
           type="button"
-          className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+          className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2.5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200"
           onClick={onNewSession}
         >
           <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">

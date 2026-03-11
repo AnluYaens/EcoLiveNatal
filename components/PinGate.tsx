@@ -93,12 +93,12 @@ export default function PinGate({ onVerified }: PinGateProps) {
         .pin-shake { animation: pin-shake 0.4s ease-in-out; }
       `}</style>
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background px-4">
-        <div className={`w-full max-w-sm bg-white rounded-3xl shadow-xl p-8 flex flex-col items-center gap-6 ${shake ? 'pin-shake' : ''}`}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm px-4">
+        <div className={`w-full max-w-sm bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center gap-6 border border-gray-100 ${shake ? 'pin-shake' : ''}`}>
 
           {/* Logo badge */}
-          <div className="w-16 h-16 rounded-full bg-accent-light flex items-center justify-center">
-            <svg className="w-8 h-8 text-accent" fill="currentColor" viewBox="0 0 64 64">
+          <div className="w-18 h-18 rounded-2xl bg-accent-light flex items-center justify-center p-4">
+            <svg className="w-10 h-10 text-accent" fill="currentColor" viewBox="0 0 64 64">
               <ellipse cx="32" cy="22" rx="13" ry="14" />
               <path d="M32 38c-10 0-19 5-19 11v3h38v-3c0-6-9-11-19-11z" />
               <circle cx="20" cy="14" r="4" />
@@ -106,9 +106,9 @@ export default function PinGate({ onVerified }: PinGateProps) {
             </svg>
           </div>
 
-          <div className="text-center space-y-1">
+          <div className="text-center space-y-1.5">
             <h1 className="text-2xl font-bold text-text-primary">{t('title')}</h1>
-            <p className="text-sm text-text-secondary">{t('subtitle')}</p>
+            <p className="text-sm text-text-secondary leading-relaxed">{t('subtitle')}</p>
           </div>
 
           {/* Token input */}
@@ -126,28 +126,34 @@ export default function PinGate({ onVerified }: PinGateProps) {
               autoFocus
               autoComplete="off"
               spellCheck={false}
-              className={`w-full px-4 py-3 rounded-xl border-2 text-sm font-mono transition-colors outline-none ${
+              className={`w-full px-4 py-3.5 rounded-xl border-2 text-sm font-mono transition-all outline-none ${
                 error
-                  ? 'border-red-300 bg-red-50'
-                  : 'border-gray-200 bg-gray-50 focus:border-accent focus:bg-white'
+                  ? 'border-red-300 bg-red-50 ring-2 ring-red-100'
+                  : 'border-gray-200 bg-gray-50 focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10'
               }`}
             />
-            <p className="text-xs text-text-secondary/60">{t('example')}</p>
+            <p className="text-[11px] text-text-secondary/50">{t('example')}</p>
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm -mt-2">
-              {lockMessage || t('error')}
-            </p>
+            <div className="w-full bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 -mt-2">
+              <p className="text-red-600 text-sm font-medium text-center">
+                {lockMessage || t('error')}
+              </p>
+            </div>
           )}
 
           <button
             type="button"
             disabled={!token.trim() || loading}
             onClick={handleSubmit}
-            className="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-4 rounded-full transition-all duration-200 disabled:opacity-40"
+            className="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-4 rounded-full transition-all duration-200 shadow-sm disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            {loading ? '...' : t('button')}
+            {loading ? (
+              <div className="h-5 w-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+            ) : (
+              t('button')
+            )}
           </button>
 
           {whatsappUrl ? (
