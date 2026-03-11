@@ -2,6 +2,7 @@ export type Style = 'soft' | 'ultra' | 'cinematic';
 export type SkinTone = 'normal' | 'moreno';
 export type GenerationMode = 'portrait' | 'realistic';
 export type ScanType = '3d4d' | '2d';
+export type AnatomicalRegion = 'face' | 'heart' | 'brain' | 'spine' | 'abdomen' | 'fullBody';
 
 const styleModifiers: Record<Style, string> = {
   soft: 'Style preference: soft natural lighting and gentle tones, while preserving the exact original geometry.',
@@ -27,11 +28,27 @@ function scanTypeDescription(scanType: ScanType): string {
     : 'a 3D/4D obstetric ultrasound (volumetric surface rendering)';
 }
 
+const regionScanSubject: Record<AnatomicalRegion, string> = {
+  face: 'showing a fetal face',
+  heart: 'showing a fetal cardiac cross-section',
+  brain: 'showing fetal intracranial structures',
+  spine: 'showing the fetal spine',
+  abdomen: 'showing fetal abdominal structures',
+  fullBody: 'showing the full fetal body',
+};
+
+function buildClinicalNotesBlock(clinicalNotes: string): string | null {
+  const trimmed = clinicalNotes.trim();
+  if (!trimmed) return null;
+  return `[CLINICAL CONTEXT provided by the operator: ${trimmed}]`;
+}
+
 function buildPortraitPrompt(
   style: Style,
   creativity: number,
   skinTone: SkinTone,
   scanType: ScanType,
+  clinicalNotes: string,
 ): string {
   const scanDesc = scanTypeDescription(scanType);
   const base = `The input image is ${scanDesc} showing a fetal face. Transform this medical scan into an ultra-realistic newborn portrait photograph.
@@ -55,6 +72,7 @@ Quality requirements: natural asymmetry in facial features (no perfect mirror sy
 
   return [
     base,
+    buildClinicalNotesBlock(clinicalNotes),
     skinToneModifier,
     styleModifiers[style],
     creativityModifier(creativity),
@@ -63,31 +81,54 @@ Quality requirements: natural asymmetry in facial features (no perfect mirror sy
     .join('\n\n');
 }
 
+const realisticRegionDetails: Record<AnatomicalRegion, string> = {
+  face: `This scan shows fetal facial anatomy. Transform it into a 3D anatomical rendering of the face preserving the EXACT same view angle (profile, frontal, or 3/4). Render skin layers, subcutaneous fat, nasal cartilage, orbital structures, lip and chin soft tissue with anatomical depth — muscle layers beneath the skin, bone structure of the maxilla and mandible visible through semi-transparent tissue. Every facial feature must occupy the same position in the output as in the input scan.`,
+
+  heart: `This scan shows fetal cardiac anatomy. CRITICAL: identify the exact cardiac view plane (4-chamber, 3-vessel, 3-vessel-trachea, short axis, LVOT, RVOT, aortic arch, ductal arch) and render that SAME cross-sectional plane — do NOT render a full 3D heart from a different angle. Transform the visible cardiac chambers, septa, valves, and great vessels into a 3D anatomical cross-section that matches the ultrasound composition 1:1. Show myocardial wall, pericardium, and surrounding thoracic structures only as they appear in this specific view. Do NOT render a full fetus.`,
+
+  brain: `This scan shows fetal intracranial anatomy. CRITICAL: identify the exact brain view plane and preserve it. If this is a MID-SAGITTAL view (showing cerebral cortex profile, corpus callosum, brainstem, cerebellum, vermis in a side view), render the SAME sagittal cross-section — do NOT convert to coronal or axial. If this is an AXIAL view (transthalamic showing thalami and cavum septum pellucidum, or transcerebellar showing posterior fossa), maintain that exact axial plane. If CORONAL, keep coronal. Transform the visible intracranial structures into a 3D anatomical rendering that matches the ultrasound composition 1:1 — same structures, same spatial arrangement, same orientation. Do NOT render a full fetus.`,
+
+  spine: `This scan shows fetal spinal anatomy. CRITICAL: identify the exact spine view (sagittal showing vertebral bodies in a line, coronal showing bilateral pedicles, or axial showing a single vertebral cross-section) and render that SAME plane. Transform the visible vertebral bodies, pedicles, spinal cord, and surrounding tissue into a 3D anatomical rendering matching the ultrasound composition 1:1. Do NOT render a full fetus — focus on the spinal structures as they appear in this view.`,
+
+  abdomen: `This scan shows fetal abdominal anatomy. CRITICAL: identify the exact abdominal cross-section plane and render that SAME plane. Transform the visible structures (abdominal wall, stomach, liver, kidneys, umbilical vessels, bowel, aorta/IVC as applicable) into a 3D anatomical rendering matching the ultrasound composition 1:1. Only render organs and structures that are visible in this specific scan plane. Do NOT render a full fetus.`,
+
+  fullBody: `This scan shows the full fetal body. Transform it into a 3D anatomical rendering preserving the EXACT same body position, orientation, and framing. Show skeletal system, major organs, and soft tissue layers as visible in the scan. The fetal pose and spatial arrangement must match the input 1:1.`,
+};
+
 function buildRealisticPrompt(
   creativity: number,
   skinTone: SkinTone,
   scanType: ScanType,
+  anatomicalRegion: AnatomicalRegion,
+  clinicalNotes: string,
 ): string {
   const scanDesc = scanTypeDescription(scanType);
-  const base = `The input image is ${scanDesc}. Create an ultra-realistic 3D reconstruction of the fetus exactly as it appears in utero.
+  const regionSubject = regionScanSubject[anatomicalRegion];
+  const regionDetail = realisticRegionDetails[anatomicalRegion];
 
-Anatomical fidelity: reproduce the exact fetal anatomy visible in the ultrasound. Match head shape, facial proportions, limb positions, and body curvature precisely. Do NOT idealize or beautify — show the fetus as it actually is.
+  const base = `CONTEXT: This is a medical educational illustration for an obstetrics textbook. The input image is ${scanDesc} ${regionSubject}. Transform this clinical ultrasound into a 3D anatomical rendering in the style of a Netter-style medical atlas or professional anatomy app (Complete Anatomy, Visible Body). This is strictly a scientific medical visualization — no photographs, no real people.
 
-Skin: render realistic fetal skin — thin, slightly translucent, with visible blood vessels beneath. Include vernix caseosa (waxy white coating) in skin folds and lanugo (fine body hair) appropriate for gestational age. Skin may appear reddish or purplish where thin.
+COMPOSITION FIDELITY (highest priority):
+- This is a VISUAL TRANSLATION of the input scan — NOT a free-form illustration.
+- The output MUST preserve the EXACT same viewing plane as the input (sagittal→sagittal, axial→axial, coronal→coronal, 4-chamber→4-chamber).
+- The structures must occupy the SAME spatial positions and proportions as in the ultrasound.
+- Do NOT reinterpret the scan from a different angle or generate a generic textbook diagram.
+- Render ONLY structures visible in this specific scan — do not invent anatomy not shown.
 
-Pose: maintain the exact fetal position from the ultrasound. Curled limbs, tucked chin, hands near face — whatever the scan shows.
+${regionDetail}
 
-Environment: dark background (black or very dark gray). No studio setup, no props, no clothing, no blankets. Lighting should be volumetric and clinical — as if illuminating the fetus inside the womb.
+Rendering: clean medical illustration with warm tones for tissue, ivory for bone. Solid dark background (near black). Soft volumetric lighting emphasizing anatomical depth and layering.
 
-Quality requirements: natural asymmetry in facial features (no perfect mirror symmetry), individually defined fingers and toes (no fused or webbed digits), anatomically correct proportions for gestational age. ZERO plastic or waxy skin, ZERO doll-like appearance, ZERO ultrasound artifacts, ZERO measurement markers, ZERO text overlays, ZERO watermarks, ZERO medical equipment, ZERO duplicate faces, ZERO extra limbs.${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited volumetric data. Reconstruct 3D anatomy from the visible cross-section while staying faithful to what is shown. Do not fabricate anatomy that is not visible in the scan.' : ''}`;
+ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. Reconstruct 3D depth from the visible slice while preserving the exact same cross-sectional plane and composition. Do not fabricate structures not visible in the scan.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'
-      ? 'Skin tone: the fetus has a naturally darker complexion with warm brown undertones. Render the skin with rich melanin appropriate for a moreno infant.'
+      ? 'Color tone: use warm brown tones with rich melanin coloring for the anatomical rendering, consistent with a moreno complexion.'
       : null;
 
   return [
     base,
+    buildClinicalNotesBlock(clinicalNotes),
     skinToneModifier,
     creativityModifier(creativity),
   ]
@@ -101,9 +142,12 @@ export function buildPrompt(
   skinTone: SkinTone = 'normal',
   mode: GenerationMode = 'portrait',
   scanType: ScanType = '3d4d',
+  anatomicalRegion: AnatomicalRegion = 'face',
+  clinicalNotes: string = '',
 ): string {
-  if (mode === 'realistic') {
-    return buildRealisticPrompt(creativity, skinTone, scanType);
+  // Portrait mode is only valid for face region — fallback to realistic otherwise
+  if (mode === 'realistic' || anatomicalRegion !== 'face') {
+    return buildRealisticPrompt(creativity, skinTone, scanType, anatomicalRegion, clinicalNotes);
   }
-  return buildPortraitPrompt(style, creativity, skinTone, scanType);
+  return buildPortraitPrompt(style, creativity, skinTone, scanType, clinicalNotes);
 }

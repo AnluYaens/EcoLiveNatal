@@ -35,6 +35,8 @@ function createRequestFingerprint(
   processedImageBuffer: Buffer,
   style: string,
   creativity: number,
+  anatomicalRegion: string,
+  clinicalNotes: string,
 ): RequestFingerprint {
   const hash = createHash('sha256');
   hash.update(processedImageBuffer);
@@ -42,6 +44,10 @@ function createRequestFingerprint(
   hash.update(style);
   hash.update('\n');
   hash.update(String(creativity));
+  hash.update('\n');
+  hash.update(anatomicalRegion);
+  hash.update('\n');
+  hash.update(clinicalNotes);
   hash.update('\n');
   hash.update(PROMPT_FINGERPRINT_VERSION);
   return hash.digest('hex');
@@ -181,6 +187,8 @@ export async function POST(req: NextRequest) {
   const skinToneRaw = formData.get('skinTone');
   const modeRaw = formData.get('mode');
   const scanTypeRaw = formData.get('scanType');
+  const anatomicalRegionRaw = formData.get('anatomicalRegion');
+  const clinicalNotesRaw = formData.get('clinicalNotes');
 
   if (!(imageFile instanceof File)) {
     return NextResponse.json(
@@ -196,6 +204,8 @@ export async function POST(req: NextRequest) {
     skinTone: skinToneRaw ?? 'normal',
     mode: modeRaw ?? 'portrait',
     scanType: scanTypeRaw ?? '3d4d',
+    anatomicalRegion: anatomicalRegionRaw ?? 'face',
+    clinicalNotes: typeof clinicalNotesRaw === 'string' ? clinicalNotesRaw : '',
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -203,7 +213,13 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { style, creativity, skinTone, mode, scanType } = parsed.data;
+  const { style, creativity, skinTone, mode, scanType, anatomicalRegion, clinicalNotes } = parsed.data;
+  // Sanitize clinical notes: strip control characters, keep only safe chars
+  const sanitizedNotes = clinicalNotes
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .replace(/[^\w\sáéíóúñüÁÉÍÓÚÑÜ.,;:()\/\-°²³+]/g, '')
+    .trim()
+    .slice(0, 200);
   console.log('Step 3: Validation passed');
 
   // 5. Validate image
@@ -233,7 +249,7 @@ export async function POST(req: NextRequest) {
 
     // 7. Build prompt
     console.log('Step 5: Building prompt');
-    const prompt = buildPrompt(style, creativity, skinTone, mode, scanType);
+    const prompt = buildPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes);
 
     // Mock mode — skip OpenAI, return a 1×1 pink PNG for UI testing
     if (process.env.MOCK_API === 'true') {
@@ -256,6 +272,8 @@ export async function POST(req: NextRequest) {
         processed,
         style,
         creativity,
+        anatomicalRegion,
+        sanitizedNotes,
       );
       const cachedImage = getCachedImage(requestFingerprint);
       if (cachedImage) {
