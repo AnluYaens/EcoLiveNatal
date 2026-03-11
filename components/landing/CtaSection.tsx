@@ -10,16 +10,16 @@ export default function CtaSection() {
   const waHref = WA_NUMBER ? `https://wa.me/${WA_NUMBER}?text=${WA_TEXT}` : '#';
 
   return (
-    <section id="cta" className="bg-accent py-16">
+    <section id="cta" className="bg-accent py-20">
       <div className="max-w-3xl mx-auto px-5 text-center">
         <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">{t('title')}</h2>
-        <p className="text-white/80 text-sm md:text-base mb-8 leading-relaxed">{t('subtitle')}</p>
+        <p className="text-white/80 text-sm md:text-base mb-8 leading-relaxed max-w-xl mx-auto">{t('subtitle')}</p>
 
         <a
           href={waHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-3 bg-white text-accent hover:bg-accent-light font-semibold px-8 py-4 rounded-button transition-colors text-sm"
+          className="inline-flex items-center gap-3 bg-white text-accent hover:bg-accent-light font-semibold px-8 py-4 rounded-full transition-all shadow-sm text-sm"
         >
           {/* WhatsApp icon */}
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

@@ -40,8 +40,8 @@ export default function FeaturesSection() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {features.map(({ key, icon }) => (
-          <div key={key} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-            <div className="w-12 h-12 rounded-xl bg-accent-light flex items-center justify-center">
+          <div key={key} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-accent-light flex items-center justify-center">
               {icon}
             </div>
             <div>

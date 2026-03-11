@@ -54,12 +54,12 @@ export default function ProcessSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
           {steps.map(({ num, key, icon }) => (
-            <div key={key} className="flex flex-col items-center text-center gap-4">
+            <div key={key} className="flex flex-col items-center text-center gap-4 bg-gray-50/50 rounded-2xl p-5">
               <div className="relative">
                 <div className="w-16 h-16 rounded-2xl bg-accent-light flex items-center justify-center">
                   {icon}
                 </div>
-                <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center shadow-sm">
                   {num}
                 </span>
               </div>

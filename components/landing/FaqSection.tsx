@@ -15,32 +15,34 @@ export default function FaqSection() {
         {t('title')}
       </h2>
 
-      <div className="flex flex-col gap-3">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100 overflow-hidden">
         {FAQ_KEYS.map((key) => {
           const answerKey = key.replace('q', 'a') as 'a1' | 'a2' | 'a3' | 'a4' | 'a5';
           const isOpen = open === key;
 
           return (
-            <div key={key} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div key={key}>
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : key)}
-                className="w-full flex items-center justify-between px-5 py-4 text-left"
+                className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50/50 transition-colors"
                 aria-expanded={isOpen}
               >
                 <span className="font-semibold text-text-primary text-sm pr-4">{t(key)}</span>
-                <svg
-                  className={`w-5 h-5 text-accent flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${isOpen ? 'bg-accent' : 'bg-gray-100'}`}>
+                  <svg
+                    className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : 'text-text-secondary'}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </button>
 
               {isOpen && (
-                <div className="px-5 pb-4">
+                <div className="px-6 pb-5">
                   <p className="text-sm text-text-secondary leading-relaxed">{t(answerKey)}</p>
                 </div>
               )}
