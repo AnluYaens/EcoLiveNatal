@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
 
     // 6b. Vision analysis (optional, non-blocking on failure)
     let analysis: UltrasoundAnalysis | null = null;
-    if (ENABLE_VISION_ANALYSIS) {
+    if (ENABLE_VISION_ANALYSIS && anatomicalRegion !== 'face') {
       try {
         console.log('Step 5a: Running vision analysis');
         analysis = await analyzeUltrasound(processed, anatomicalRegion, scanType, sanitizedNotes);
