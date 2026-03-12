@@ -45,21 +45,26 @@ export default function ProcessSection() {
   const t = useTranslations('landing.process');
 
   return (
-    <section id="proceso" className="bg-white py-16 scroll-mt-16">
+    <section id="proceso" className="bg-gradient-to-b from-white to-accent-light/15 py-16 scroll-mt-16">
       <div className="max-w-5xl mx-auto px-5">
         <div className="text-center mb-12">
           <h2 className="text-2xl md:text-3xl font-bold text-text-primary mb-3">{t('title')}</h2>
           <p className="text-text-secondary text-sm md:text-base">{t('subtitle')}</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {steps.map(({ num, key, icon }) => (
-            <div key={key} className="flex flex-col items-center text-center gap-4 bg-gray-50/50 rounded-2xl p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+          {steps.map(({ num, key, icon }, idx) => (
+            <div key={key} className="relative flex flex-col items-center text-center gap-4 bg-white/60 rounded-2xl p-5 border border-transparent hover:border-accent/25 hover:bg-white/80 hover:shadow-md transition-all duration-200">
+              {/* Dashed connector line — sits in the gap between cards, vertically centered with icon (desktop only) */}
+              {idx > 0 && (
+                <div className="hidden md:block absolute top-[52px] -translate-y-1/2 right-full w-8 border-t-2 border-dashed border-accent/30" />
+              )}
+
               <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-accent-light flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-light to-accent/10 flex items-center justify-center shadow-sm">
                   {icon}
                 </div>
-                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center shadow-sm">
+                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-accent to-accent-hover text-white text-[11px] font-bold flex items-center justify-center shadow-md ring-2 ring-white">
                   {num}
                 </span>
               </div>

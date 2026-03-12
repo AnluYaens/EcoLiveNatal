@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   min-height: 100vh;
   background:
@@ -125,6 +129,11 @@ body {
   top: 3%; right: 28%;
   animation: fc-drift-c 17s ease-in-out infinite;
   animation-delay: -6s;
+}
+
+/* Contained floating circles — absolute instead of fixed */
+.fc-contained .fc {
+  position: absolute;
 }
 
 @keyframes result-compare-reveal {
