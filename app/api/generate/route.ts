@@ -4,7 +4,9 @@ import OpenAI from 'openai';
 import sharp from 'sharp';
 import { preprocessUltrasound } from '@/lib/imagePreprocess';
 import { generatePortrait } from '@/lib/openaiClient';
-import { buildPrompt } from '@/lib/promptBuilder';
+import { buildPrompt, buildEnhancedPrompt } from '@/lib/promptBuilder';
+import { analyzeUltrasound } from '@/lib/visionAnalysis';
+import type { UltrasoundAnalysis } from '@/lib/visionAnalysis';
 import { GenerateSchema } from '@/lib/validation';
 import { MAX_FILE_SIZE_BYTES, SUPPORTED_MIME_TYPES } from '@/lib/constants';
 import * as accountStore from '@/lib/accountStore';
@@ -18,8 +20,9 @@ const RATE_WINDOW_MS = 60_000;
 const OPENAI_TIMEOUT_MS = 55_000;
 const IMAGE_CACHE_TTL_MS = 45 * 60_000;
 const IMAGE_CACHE_MAX_ENTRIES = 100;
-const PROMPT_FINGERPRINT_VERSION = 'v1-neutral-consistency';
+const PROMPT_FINGERPRINT_VERSION = 'v2-vision-enhanced';
 const ENABLE_SESSION_IMAGE_CACHE = process.env.ENABLE_SESSION_IMAGE_CACHE === 'true';
+const ENABLE_VISION_ANALYSIS = process.env.ENABLE_VISION_ANALYSIS === 'true';
 
 type RequestFingerprint = string;
 
@@ -247,9 +250,23 @@ export async function POST(req: NextRequest) {
     console.log('Step 4: Image preprocessing');
     const processed = await preprocessUltrasound(buffer);
 
-    // 7. Build prompt
+    // 6b. Vision analysis (optional, non-blocking on failure)
+    let analysis: UltrasoundAnalysis | null = null;
+    if (ENABLE_VISION_ANALYSIS) {
+      try {
+        console.log('Step 5a: Running vision analysis');
+        analysis = await analyzeUltrasound(processed, anatomicalRegion, scanType, sanitizedNotes);
+        console.log(`Step 5a: Vision analysis ${analysis ? 'complete' : 'returned null (fallback to standard prompt)'}`);
+      } catch {
+        console.warn('Step 5a: Vision analysis failed, using standard prompt');
+      }
+    }
+
+    // 7. Build prompt (enhanced if analysis available)
     console.log('Step 5: Building prompt');
-    const prompt = buildPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes);
+    const prompt = analysis
+      ? buildEnhancedPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes, analysis)
+      : buildPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes);
 
     // Mock mode — skip OpenAI, return a 1×1 pink PNG for UI testing
     if (process.env.MOCK_API === 'true') {

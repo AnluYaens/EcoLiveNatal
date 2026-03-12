@@ -151,3 +151,186 @@ export function buildPrompt(
   }
   return buildPortraitPrompt(style, creativity, skinTone, scanType, clinicalNotes);
 }
+
+// ---------- Enhanced prompt (with vision analysis) ----------
+
+import type { UltrasoundAnalysis } from './visionAnalysis';
+
+function buildVisionFaceBlock(analysis: UltrasoundAnalysis): string {
+  const fd = analysis.faceDetails;
+  if (!fd) return '';
+
+  const lines: string[] = [
+    `VISION ANALYSIS — the following describes THIS specific baby as seen in the ultrasound:`,
+    `- View angle: ${analysis.viewAngle}`,
+    `- Estimated gestational age: ${analysis.estimatedGestationalWeeks ? `~${analysis.estimatedGestationalWeeks} weeks` : 'unknown'}`,
+    `- Image quality: ${analysis.imageQuality}`,
+    `- Visible structures: ${analysis.visibleStructures.join(', ')}`,
+    '',
+    `SPECIFIC FACIAL FEATURES (reproduce these EXACTLY):`,
+    `- Nose: ${fd.noseDescription}`,
+    `- Lips: ${fd.lipDescription}`,
+    `- Chin: ${fd.chinDescription}`,
+    `- Forehead: ${fd.foreheadDescription}`,
+    `- Cheeks: ${fd.cheekDescription}`,
+    `- Eyes: ${fd.eyeDescription}`,
+  ];
+
+  if (fd.handPosition) {
+    lines.push(`- Hand position: ${fd.handPosition}`);
+  }
+  if (fd.earVisible) {
+    lines.push(`- Ear: visible`);
+  }
+  if (fd.hairVisible) {
+    lines.push(`- Hair: visible`);
+  }
+
+  lines.push(`- Expression: ${fd.expression}`);
+  lines.push('');
+  lines.push(`Overall: ${analysis.overallDescription}`);
+
+  return lines.join('\n');
+}
+
+function buildVisionOrganBlock(analysis: UltrasoundAnalysis): string {
+  const od = analysis.organDetails;
+  if (!od) return '';
+
+  const lines: string[] = [
+    `VISION ANALYSIS — the following describes exactly what is visible in this ultrasound:`,
+    `- View plane: ${od.viewPlane}`,
+    `- Estimated gestational age: ${analysis.estimatedGestationalWeeks ? `~${analysis.estimatedGestationalWeeks} weeks` : 'unknown'}`,
+    `- Image quality: ${analysis.imageQuality}`,
+    `- Visible structures: ${analysis.visibleStructures.join(', ')}`,
+    '',
+    `DETAILED ANATOMY:`,
+    od.visibleAnatomyDescription,
+  ];
+
+  if (od.measurements) {
+    lines.push(`\nMeasurements visible: ${od.measurements}`);
+  }
+
+  lines.push(`\nOverall: ${analysis.overallDescription}`);
+
+  return lines.join('\n');
+}
+
+const NEGATIVE_PROMPT = `ABSOLUTELY DO NOT:
+- Generate a generic stock baby photo that could be any baby
+- Ignore the specific features described above from the ultrasound
+- Create perfectly symmetric, idealized features — real babies have natural asymmetry
+- Produce plastic, waxy, or airbrushed skin
+- Add any text, watermarks, logos, or medical equipment to the image`;
+
+function buildEnhancedPortraitPrompt(
+  style: Style,
+  creativity: number,
+  skinTone: SkinTone,
+  scanType: ScanType,
+  clinicalNotes: string,
+  analysis: UltrasoundAnalysis,
+): string {
+  const scanDesc = scanTypeDescription(scanType);
+  const visionBlock = buildVisionFaceBlock(analysis);
+
+  const base = `The input image is ${scanDesc} showing a fetal face. Transform this medical scan into an ultra-realistic newborn portrait photograph of THIS SPECIFIC baby.
+
+${visionBlock}
+
+Clothing requirement: the baby must be fully clothed in a soft cotton onesie or gently swaddled in a clean white or pastel blanket — no exposed skin below the shoulders, no nudity of any kind.
+
+Likeness requirement: this is a portrait of THIS SPECIFIC baby as described above — not a generic newborn. Every facial feature must match the analysis: the exact nose shape, lip fullness, chin contour, forehead slope, and cheek volume described. If the analysis mentions a hand near the face, include it in the same position. The resulting portrait must be visually recognizable as the same baby seen in the ultrasound.
+
+Pose requirement: the analysis identifies the view angle as "${analysis.viewAngle}". The portrait MUST match this exact angle — ${analysis.viewAngle === 'frontal' ? 'render a frontal view' : analysis.viewAngle.includes('profile') ? 'render a profile view from the same side' : 'render a 3/4 view from the same side'}.
+
+Composition: fill the frame with the baby's face and upper body. Use shallow depth of field with soft bokeh background. Soft natural studio lighting.
+
+Skin texture: real newborn skin with fine peach fuzz, tiny pores visible at close inspection, natural color variation (slightly redder on cheeks, paler on forehead), soft mottling. NOT airbrushed, NOT plastic, NOT porcelain.
+
+${NEGATIVE_PROMPT}${scanType === '2d' ? '\n\nNote: this is a 2D ultrasound with limited geometric detail. The vision analysis has already interpreted the visible features — use those descriptions to guide the reconstruction.' : ''}`;
+
+  const skinToneModifier =
+    skinTone === 'moreno'
+      ? 'Skin tone requirement: the newborn has warm brown skin with a naturally dark complexion. Render the skin tone accurately: rich melanin, warm undertones, darker coloring consistent with a moreno infant.'
+      : null;
+
+  return [
+    base,
+    buildClinicalNotesBlock(clinicalNotes),
+    skinToneModifier,
+    styleModifiers[style],
+    creativityModifier(creativity),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+function buildEnhancedRealisticPrompt(
+  creativity: number,
+  skinTone: SkinTone,
+  scanType: ScanType,
+  anatomicalRegion: AnatomicalRegion,
+  clinicalNotes: string,
+  analysis: UltrasoundAnalysis,
+): string {
+  const scanDesc = scanTypeDescription(scanType);
+  const regionSubject = regionScanSubject[anatomicalRegion];
+  const regionDetail = realisticRegionDetails[anatomicalRegion];
+  const visionBlock = buildVisionOrganBlock(analysis);
+
+  const base = `CONTEXT: This is a medical educational illustration for an obstetrics textbook. The input image is ${scanDesc} ${regionSubject}. Transform this clinical ultrasound into a 3D anatomical rendering in the style of a Netter-style medical atlas or professional anatomy app (Complete Anatomy, Visible Body). This is strictly a scientific medical visualization — no photographs, no real people.
+
+${visionBlock}
+
+COMPOSITION FIDELITY (highest priority):
+- This is a VISUAL TRANSLATION of the input scan — NOT a free-form illustration.
+- The analysis above identifies the exact view plane as "${analysis.organDetails?.viewPlane ?? 'unknown'}". Render that SAME plane.
+- The structures must occupy the SAME spatial positions and proportions as in the ultrasound.
+- Do NOT reinterpret the scan from a different angle or generate a generic textbook diagram.
+- Render ONLY structures visible in this specific scan — do not invent anatomy not shown.
+
+${regionDetail}
+
+Rendering: clean medical illustration with warm tones for tissue, ivory for bone. Solid dark background (near black). Soft volumetric lighting emphasizing anatomical depth and layering.
+
+ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. The vision analysis has already identified the visible structures — use those descriptions to guide the 3D reconstruction.' : ''}`;
+
+  const skinToneModifier =
+    skinTone === 'moreno'
+      ? 'Color tone: use warm brown tones with rich melanin coloring for the anatomical rendering, consistent with a moreno complexion.'
+      : null;
+
+  return [
+    base,
+    buildClinicalNotesBlock(clinicalNotes),
+    skinToneModifier,
+    creativityModifier(creativity),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+export function buildEnhancedPrompt(
+  style: Style,
+  creativity: number,
+  skinTone: SkinTone = 'normal',
+  mode: GenerationMode = 'portrait',
+  scanType: ScanType = '3d4d',
+  anatomicalRegion: AnatomicalRegion = 'face',
+  clinicalNotes: string = '',
+  analysis: UltrasoundAnalysis | null = null,
+): string {
+  // If no analysis, fall back to standard prompt
+  if (!analysis) {
+    return buildPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, clinicalNotes);
+  }
+
+  // Portrait mode is only valid for face region
+  if (mode === 'portrait' && anatomicalRegion === 'face') {
+    return buildEnhancedPortraitPrompt(style, creativity, skinTone, scanType, clinicalNotes, analysis);
+  }
+
+  return buildEnhancedRealisticPrompt(creativity, skinTone, scanType, anatomicalRegion, clinicalNotes, analysis);
+}
