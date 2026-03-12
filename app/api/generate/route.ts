@@ -111,6 +111,39 @@ function setCachedImage(
   cleanupImageCache(now);
 }
 
+/**
+ * Black out the left and right annotation panels that GE ultrasound machines
+ * overlay on cardiac and other anatomical scans (Card-circ, Heart-A, Th-circ, etc.).
+ * Applied BEFORE preprocessUltrasound() for non-face anatomical scans only.
+ */
+async function blackOutAnnotationPanels(inputBuffer: Buffer): Promise<Buffer> {
+  const metadata = await sharp(inputBuffer).metadata();
+  const width = metadata.width ?? 1024;
+  const height = metadata.height ?? 1024;
+
+  const leftWidth = Math.floor(width * 0.25);   // GE left measurement panel
+  const rightWidth = Math.floor(width * 0.12);  // GE device/probe info
+
+  const black = { r: 0, g: 0, b: 0 };
+
+  const leftStrip = await sharp({
+    create: { width: leftWidth, height, channels: 3, background: black },
+  }).png().toBuffer();
+
+  const rightStrip = await sharp({
+    create: { width: rightWidth, height, channels: 3, background: black },
+  }).png().toBuffer();
+
+  return sharp(inputBuffer)
+    .flatten({ background: black })
+    .composite([
+      { input: leftStrip, top: 0, left: 0 },
+      { input: rightStrip, top: 0, left: width - rightWidth },
+    ])
+    .png()
+    .toBuffer();
+}
+
 function getIp(req: NextRequest): string {
   return (
     req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
@@ -246,9 +279,12 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await imageFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 6. Preprocess
+    // 6. Preprocess — for non-face regions, black out GE annotation panels first
     console.log('Step 4: Image preprocessing');
-    const processed = await preprocessUltrasound(buffer);
+    const preCroppedBuffer = anatomicalRegion !== 'face'
+      ? await blackOutAnnotationPanels(buffer)
+      : buffer;
+    const processed = await preprocessUltrasound(preCroppedBuffer);
 
     // 6b. Vision analysis (optional, non-blocking on failure)
     let analysis: UltrasoundAnalysis | null = null;
@@ -316,15 +352,17 @@ export async function POST(req: NextRequest) {
     const rawBuffer = Buffer.from(rawBase64, 'base64');
     let postProcessed = sharp(rawBuffer);
 
-    // Light sharpening for detail
-    postProcessed = postProcessed.sharpen({ sigma: 0.8, m1: 0.5, m2: 0.3 });
-
-    // Mode-specific color grading
     if (mode === 'portrait') {
-      // Warm shift for portrait mode
-      postProcessed = postProcessed.modulate({ brightness: 1.02, saturation: 1.05 });
+      // Portrait: light sharpening + warm shift
+      postProcessed = postProcessed
+        .sharpen({ sigma: 0.8, m1: 0.5, m2: 0.3 })
+        .modulate({ brightness: 1.02, saturation: 1.05 });
+    } else {
+      // Realistic: stronger sharpening + moderate saturation to bring out tissue texture
+      postProcessed = postProcessed
+        .sharpen({ sigma: 1.2, m1: 0.8, m2: 0.5 })
+        .modulate({ saturation: 1.08 });
     }
-    // Realistic mode: no color shift (keep clinical/neutral)
 
     const finalBuffer = await postProcessed.png().toBuffer();
     const base64 = finalBuffer.toString('base64');

@@ -84,9 +84,27 @@ Quality requirements: natural asymmetry in facial features (no perfect mirror sy
 const realisticRegionDetails: Record<AnatomicalRegion, string> = {
   face: `This scan shows fetal facial anatomy. Transform it into a 3D anatomical rendering of the face preserving the EXACT same view angle (profile, frontal, or 3/4). Render skin layers, subcutaneous fat, nasal cartilage, orbital structures, lip and chin soft tissue with anatomical depth — muscle layers beneath the skin, bone structure of the maxilla and mandible visible through semi-transparent tissue. Every facial feature must occupy the same position in the output as in the input scan.`,
 
-  heart: `This scan shows fetal cardiac anatomy. CRITICAL: identify the exact cardiac view plane (4-chamber, 3-vessel, 3-vessel-trachea, short axis, LVOT, RVOT, aortic arch, ductal arch) and render that SAME cross-sectional plane — do NOT render a full 3D heart from a different angle. Transform the visible cardiac chambers, septa, valves, and great vessels into a detailed 3D anatomical cross-section.
+  heart: `This scan shows fetal cardiac anatomy.
 
-FRAMING REQUIREMENT: the heart must fill 75–85% of the output frame — render it as a close-up isolated cardiac atlas plate. Show the myocardial walls, interventricular septum, atrioventricular valves, and pericardium in rich anatomical detail. Surrounding thoracic structures (lungs, spine, ribs) must NOT dominate the frame — they may appear minimally at the edges only if clearly visible in the scan. The output should look like a dedicated cardiac illustration from a medical atlas, NOT a full thoracic cross-section. Do NOT render a full fetus.`,
+ANNOTATION RULE: The ultrasound image may contain yellow measurement text, crosshair markers, and numerical overlays (e.g. "Card-circ", "Heart-A", "Th-circ", dimension values, gestational age labels). These are machine annotations — COMPLETELY IGNORE THEM. Do not reproduce any text, labels, or crosshairs. Do not let overlay positions influence structure placement.
+
+VIEW FIDELITY: identify the exact cardiac view plane (4-chamber, 3-vessel, 3-vessel-trachea, LVOT, RVOT, short axis, aortic arch, ductal arch) and render that SAME cross-sectional plane. Do NOT rotate or reinterpret the scan from a different angle.
+
+FRAMING: the heart must fill 75–85% of the output frame as a close-up isolated cardiac atlas plate. Surrounding thoracic structures (lungs, spine, ribs) may appear only minimally at the frame edges. Do NOT render a full thoracic cross-section or a full fetus.
+
+MYOCARDIUM: render with visible fiber architecture — subtle oblique striations indicating myocardial fiber bundles running through the ventricular wall. Subsurface scattering: tissue appears slightly translucent near the endocardial surface, warming toward the epicardium. Pericardium rendered as a thin slightly reflective fibrous membrane with a narrow pericardial space.
+
+ENDOCARDIAL SURFACES: left ventricle interior shows trabeculae carneae — irregular muscular ridges projecting from the inner wall, more prominent near the apex. Right ventricle shows moderator band as a muscular bridge if visible. Chamber lumens: deep maroon/near-black blood-pool color contrasting against warm myocardial walls.
+
+VALVES: atrioventricular valves (mitral / tricuspid) rendered as thin slightly translucent fibrous leaflets. Chordae tendineae as hair-thin white fibrous strands connecting leaflet edges to papillary muscle tips — subtle but visible. Papillary muscles as conical prominences projecting into the ventricular cavity.
+
+GREAT VESSELS: aortic and pulmonary artery walls with three visible layers (intima bright highlight, media warm muscular tone, adventitia blending into surrounding tissue). Vessel lumens dark maroon with specular highlight on inner curve.
+
+LIGHTING: directional illumination from upper-left. Ambient occlusion darkens chamber corners and valve crevices. Structures closer to the viewer: warmer and brighter. Receding structures: cooler and darker. Soft specular highlights on epicardial surface.
+
+STYLE: photorealistic 3D medical visualization — indistinguishable from a high-resolution render from Complete Anatomy (3D4Medical) or Zygote Body. NOT a hand-drawn illustration. NOT a cartoon.
+
+COLOR PALETTE: myocardium deep red (#8B1A1A–#C94040), blood pool near-black (#2D0A0A), fibrous structures ivory-white (#F5F0E8), background near-black (#0A0A0A).`,
 
   brain: `This scan shows fetal intracranial anatomy. CRITICAL: identify the exact brain view plane and preserve it. If this is a MID-SAGITTAL view (showing cerebral cortex profile, corpus callosum, brainstem, cerebellum, vermis in a side view), render the SAME sagittal cross-section — do NOT convert to coronal or axial. If this is an AXIAL view (transthalamic showing thalami and cavum septum pellucidum, or transcerebellar showing posterior fossa), maintain that exact axial plane. If CORONAL, keep coronal. Transform the visible intracranial structures into a 3D anatomical rendering that matches the ultrasound composition 1:1 — same structures, same spatial arrangement, same orientation. Do NOT render a full fetus.`,
 
@@ -96,6 +114,14 @@ FRAMING REQUIREMENT: the heart must fill 75–85% of the output frame — render
 
   fullBody: `This scan shows the full fetal body. Transform it into a 3D anatomical rendering preserving the EXACT same body position, orientation, and framing. Show skeletal system, major organs, and soft tissue layers as visible in the scan. The fetal pose and spatial arrangement must match the input 1:1.`,
 };
+
+function buildRenderingInstruction(anatomicalRegion: AnatomicalRegion): string {
+  if (anatomicalRegion === 'heart') {
+    // Heart rendering style is fully specified in realisticRegionDetails.heart
+    return '';
+  }
+  return 'Rendering: clean medical illustration with warm tones for tissue, ivory for bone. Solid dark background (near black). Soft volumetric lighting emphasizing anatomical depth and layering.';
+}
 
 function buildRealisticPrompt(
   creativity: number,
@@ -119,9 +145,9 @@ COMPOSITION FIDELITY (highest priority):
 
 ${regionDetail}
 
-Rendering: clean medical illustration with warm tones for tissue, ivory for bone. Solid dark background (near black). Soft volumetric lighting emphasizing anatomical depth and layering.
+${buildRenderingInstruction(anatomicalRegion)}
 
-ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. Reconstruct 3D depth from the visible slice while preserving the exact same cross-sectional plane and composition. Do not fabricate structures not visible in the scan.' : ''}`;
+ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. Reconstruct 3D depth from the visible slice while preserving the exact same cross-sectional plane and composition. Do not fabricate structures not visible in the scan.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'
@@ -210,10 +236,27 @@ function buildVisionOrganBlock(analysis: UltrasoundAnalysis): string {
     od.visibleAnatomyDescription,
   ];
 
-  if (od.measurements) {
-    lines.push(`\nMeasurements visible: ${od.measurements}`);
+  const cd = od.cardiacDetails;
+  if (cd) {
+    lines.push('');
+    lines.push(`CARDIAC STRUCTURE DETAILS (render these specifically):`);
+    if (cd.visibleChambers.length > 0) {
+      lines.push(`- Visible chambers: ${cd.visibleChambers.join(', ')}`);
+    }
+    lines.push(`- Septal integrity: ${cd.septalIntegrity}`);
+    if (cd.valvesVisible.length > 0) {
+      lines.push(`- Valves visible: ${cd.valvesVisible.join(', ')}`);
+    }
+    if (cd.greatVessels) {
+      lines.push(`- Great vessels: ${cd.greatVessels}`);
+    }
+    lines.push(`- Pericardium visible: ${cd.pericardiumVisible ? 'yes' : 'no'}`);
+    if (cd.structuralAnomalyFlag) {
+      lines.push(`- Structural note: ${cd.structuralAnomalyFlag}`);
+    }
   }
 
+  // measurements omitted — cardiac overlays are annotation noise, not anatomy
   lines.push(`\nOverall: ${analysis.overallDescription}`);
 
   return lines.join('\n');
@@ -295,9 +338,9 @@ COMPOSITION FIDELITY (highest priority):
 
 ${regionDetail}
 
-Rendering: clean medical illustration with warm tones for tissue, ivory for bone. Solid dark background (near black). Soft volumetric lighting emphasizing anatomical depth and layering.
+${buildRenderingInstruction(anatomicalRegion)}
 
-ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. The vision analysis has already identified the visible structures — use those descriptions to guide the 3D reconstruction.' : ''}`;
+ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. The vision analysis has already identified the visible structures — use those descriptions to guide the 3D reconstruction.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'

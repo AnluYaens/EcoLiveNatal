@@ -22,10 +22,20 @@ const FaceDetailsSchema = z.object({
   expression: z.string(),
 });
 
+const CardiacDetailsSchema = z.object({
+  visibleChambers: z.array(z.string()),
+  septalIntegrity: z.string(),
+  valvesVisible: z.array(z.string()),
+  greatVessels: z.string(),
+  pericardiumVisible: z.boolean(),
+  structuralAnomalyFlag: z.string().nullable(),
+});
+
 const OrganDetailsSchema = z.object({
   viewPlane: z.string(),
   visibleAnatomyDescription: z.string(),
   measurements: z.string().nullable(),
+  cardiacDetails: CardiacDetailsSchema.optional(),
 });
 
 const UltrasoundAnalysisSchema = z.object({
@@ -76,20 +86,30 @@ Return a JSON object with this exact structure:
 }`;
 
 const ORGAN_VISION_PROMPT_MAP: Record<Exclude<AnatomicalRegion, 'face'>, string> = {
-  heart: `Analyze this obstetric ultrasound showing fetal cardiac anatomy. Describe ONLY what you can clearly see.
+  heart: `Analyze this obstetric ultrasound showing fetal cardiac anatomy. Describe ONLY the underlying anatomical structures.
+
+IMPORTANT: This scan may contain yellow measurement overlays and annotation text (such as "Card-circ", "Heart-A", "Th-circ", dimension numbers, gestational age labels, crosshair markers). IGNORE all text, numerical labels, and measurement lines completely. Analyze ONLY the anatomical tissue structures visible beneath those overlays.
 
 Return a JSON object:
 {
   "estimatedGestationalWeeks": <number or null>,
   "viewAngle": <"axial" | "coronal" | "sagittal" | "unknown">,
   "imageQuality": <"excellent" | "good" | "fair" | "poor">,
-  "visibleStructures": [<list: e.g. "left ventricle", "right ventricle", "interventricular septum", "mitral valve", "tricuspid valve", "aorta">],
+  "visibleStructures": [<list: e.g. "left ventricle", "right ventricle", "interventricular septum", "mitral valve", "tricuspid valve", "aorta", "pulmonary artery">],
   "organDetails": {
     "viewPlane": "<exact cardiac view: 'four-chamber', '3-vessel', '3-vessel-trachea', 'LVOT', 'RVOT', 'aortic arch', 'ductal arch', 'short axis', or description>",
-    "visibleAnatomyDescription": "<detailed paragraph describing all visible cardiac structures, their spatial relationships, and any notable findings>",
-    "measurements": "<any visible measurements on screen, or null>"
+    "visibleAnatomyDescription": "<detailed paragraph describing all visible cardiac structures, their spatial relationships, wall thicknesses, chamber sizes — ignore any text overlays>",
+    "measurements": null,
+    "cardiacDetails": {
+      "visibleChambers": [<list of chamber abbreviations visible: "LV", "RV", "LA", "RA">],
+      "septalIntegrity": "<describe interventricular and interatrial septum — e.g. 'IVS appears intact throughout', 'IVS not clearly visible', 'possible perimembranous defect'>",
+      "valvesVisible": [<list of valves clearly visible: "mitral", "tricuspid", "aortic", "pulmonary">],
+      "greatVessels": "<describe aorta and pulmonary artery as visible — position, relative size — or 'not visible in this plane'>",
+      "pericardiumVisible": <true/false>,
+      "structuralAnomalyFlag": "<brief description of any suspected structural anomaly, or null if none>"
+    }
   },
-  "overallDescription": "<2-3 sentence summary>"
+  "overallDescription": "<2-3 sentence summary of cardiac anatomy visible>"
 }`,
 
   brain: `Analyze this obstetric ultrasound showing fetal intracranial structures. Describe ONLY what you can clearly see.
