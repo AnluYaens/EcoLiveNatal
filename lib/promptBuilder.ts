@@ -82,46 +82,72 @@ Quality requirements: natural asymmetry in facial features (no perfect mirror sy
 }
 
 const realisticRegionDetails: Record<AnatomicalRegion, string> = {
-  face: `This scan shows fetal facial anatomy. Transform it into a 3D anatomical rendering of the face preserving the EXACT same view angle (profile, frontal, or 3/4). Render skin layers, subcutaneous fat, nasal cartilage, orbital structures, lip and chin soft tissue with anatomical depth — muscle layers beneath the skin, bone structure of the maxilla and mandible visible through semi-transparent tissue. Every facial feature must occupy the same position in the output as in the input scan.`,
+  face: `This scan shows fetal facial anatomy. Transform it into a photorealistic HDlive-style 3D rendering preserving the EXACT same view angle and spatial layout as the input scan (profile, frontal, or 3/4). Every facial feature must occupy the same position as in the ultrasound. Warm peach/amber skin tones, soft translucent tissue revealing underlying structure. Render skin surface, subcutaneous fat, nasal cartilage, orbital structures, lips and chin with depth.`,
 
   heart: `This scan shows fetal cardiac anatomy.
 
-ANNOTATION RULE: The ultrasound image may contain yellow measurement text, crosshair markers, and numerical overlays (e.g. "Card-circ", "Heart-A", "Th-circ", dimension values, gestational age labels). These are machine annotations — COMPLETELY IGNORE THEM. Do not reproduce any text, labels, or crosshairs. Do not let overlay positions influence structure placement.
+ANNOTATION RULE: The image may contain yellow measurement text and crosshair overlays (Card-circ, Heart-A, Th-circ, etc.) — COMPLETELY IGNORE THEM. Do not reproduce any text, labels, or crosshairs.
 
-VIEW FIDELITY: identify the exact cardiac view plane (4-chamber, 3-vessel, 3-vessel-trachea, LVOT, RVOT, short axis, aortic arch, ductal arch) and render that SAME cross-sectional plane. Do NOT rotate or reinterpret the scan from a different angle.
+SPATIAL FIDELITY (highest priority): This is a direct visual translation of the input scan. Every structure must occupy the EXACT same position in the output as it does in the input. If the heart is left of center in the echo, it must be left of center in the output. If the spine appears at the bottom, it stays at the bottom. Do NOT center, rotate, or recompose.
 
-FRAMING: the heart must fill 75–85% of the output frame as a close-up isolated cardiac atlas plate. Surrounding thoracic structures (lungs, spine, ribs) may appear only minimally at the frame edges. Do NOT render a full thoracic cross-section or a full fetus.
+WHAT TO RENDER: Show the FULL thoracic cross-section at the cardiac level — exactly as seen in the scan:
+- The rounded thoracic silhouette with semi-transparent chest wall (faint rib arches in warm ivory at the periphery)
+- Lung fields in their exact positions flanking the heart, rendered as warm translucent amber/golden tissue
+- The cardiac chambers (with walls, septa, atrioventricular valves) rendered in warm rose/amber tones with near-black blood-pool lumens — in the exact same position and proportion as in the echo
+- Pericardial layer surrounding the heart
+- Spine and descending aorta as a posterior dark rounded structure, in the same position as in the scan
 
-MYOCARDIUM: render with visible fiber architecture — subtle oblique striations indicating myocardial fiber bundles running through the ventricular wall. Subsurface scattering: tissue appears slightly translucent near the endocardial surface, warming toward the epicardium. Pericardium rendered as a thin slightly reflective fibrous membrane with a narrow pericardial space.
+COLOR PALETTE: warm amber/golden for lung fields, rose-pink/warm red for myocardium, near-black for blood-pool lumens, warm ivory for ribs, dark background
 
-ENDOCARDIAL SURFACES: left ventricle interior shows trabeculae carneae — irregular muscular ridges projecting from the inner wall, more prominent near the apex. Right ventricle shows moderator band as a muscular bridge if visible. Chamber lumens: deep maroon/near-black blood-pool color contrasting against warm myocardial walls.
+STYLE: photorealistic 3D HDlive-enhanced fetal visualization — the same warm amber aesthetic as a high-quality 3D obstetric ultrasound but with perfect anatomical clarity. NOT an isolated heart specimen. NOT a dark atlas plate.
 
-VALVES: atrioventricular valves (mitral / tricuspid) rendered as thin slightly translucent fibrous leaflets. Chordae tendineae as hair-thin white fibrous strands connecting leaflet edges to papillary muscle tips — subtle but visible. Papillary muscles as conical prominences projecting into the ventricular cavity.
+NO TEXT: no labels (LV, RV, LA, RA, IVS), no arrows, no annotations.`,
 
-GREAT VESSELS: aortic and pulmonary artery walls with three visible layers (intima bright highlight, media warm muscular tone, adventitia blending into surrounding tissue). Vessel lumens dark maroon with specular highlight on inner curve.
+  brain: `This scan shows fetal intracranial anatomy.
 
-LIGHTING: directional illumination from upper-left. Ambient occlusion darkens chamber corners and valve crevices. Structures closer to the viewer: warmer and brighter. Receding structures: cooler and darker. Soft specular highlights on epicardial surface.
+SPATIAL FIDELITY (highest priority): Every structure must occupy the EXACT same position in the output as in the input scan. The view plane must match exactly (sagittal→sagittal, axial→axial, coronal→coronal). Do NOT rotate, recenter, or recompose.
 
-STYLE: photorealistic 3D medical visualization — indistinguishable from a high-resolution render from Complete Anatomy (3D4Medical) or Zygote Body. NOT a hand-drawn illustration. NOT a cartoon.
+WHAT TO RENDER: Show the FETAL HEAD with a cut-away view revealing the intracranial structures — in the exact same orientation as the scan:
+- If sagittal: fetal head in profile, warm peach/skin exterior visible, mid-sagittal cut revealing brain (cerebral cortex, corpus callosum, brainstem, cerebellum, vermis)
+- If axial/transverse: fetal skull as ovoid form, horizontal cross-section revealing internal structures (cerebral hemispheres, thalami, cavum septum pellucidum, or posterior fossa) in their exact positions from the scan
+- Exterior: warm peach/skin and ivory bone tones; Brain parenchyma: warm beige/tan; CSF/ventricles: darker translucent
+- Dark background, warm HDlive aesthetic throughout`,
 
-COLOR PALETTE: myocardium deep red (#8B1A1A–#C94040), blood pool near-black (#2D0A0A), fibrous structures ivory-white (#F5F0E8), background near-black (#0A0A0A).`,
+  spine: `This scan shows fetal spinal anatomy.
 
-  brain: `This scan shows fetal intracranial anatomy. CRITICAL: identify the exact brain view plane and preserve it. If this is a MID-SAGITTAL view (showing cerebral cortex profile, corpus callosum, brainstem, cerebellum, vermis in a side view), render the SAME sagittal cross-section — do NOT convert to coronal or axial. If this is an AXIAL view (transthalamic showing thalami and cavum septum pellucidum, or transcerebellar showing posterior fossa), maintain that exact axial plane. If CORONAL, keep coronal. Transform the visible intracranial structures into a 3D anatomical rendering that matches the ultrasound composition 1:1 — same structures, same spatial arrangement, same orientation. Do NOT render a full fetus.`,
+SPATIAL FIDELITY (highest priority): Every structure must occupy the EXACT same position in the output as in the input scan. The fetal pose and orientation must match exactly. Do NOT recenter or repose the figure.
 
-  spine: `This scan shows fetal spinal anatomy. CRITICAL: identify the exact spine view (sagittal showing vertebral bodies in a line, coronal showing bilateral pedicles, or axial showing a single vertebral cross-section) and render that SAME plane. Transform the visible vertebral bodies, pedicles, spinal cord, and surrounding tissue into a 3D anatomical rendering matching the ultrasound composition 1:1. Do NOT render a full fetus — focus on the spinal structures as they appear in this view.`,
+WHAT TO RENDER: Show the FETAL BODY with semi-transparent skin revealing the skeletal anatomy — in the exact same position and orientation as the ultrasound:
+- Skin: warm translucent amber/peach, transparent enough to see through to the bones
+- Vertebral column: individual vertebral bodies, pedicles, spinous processes in warm ivory/golden tones, in their exact position and curvature as shown in the scan
+- Ribcage if visible: curved warm ivory arches extending from spine
+- Skull if visible: smooth warm ivory cranium
+- Limbs and soft tissue: warm amber translucent forms
+- Dark background, warm HDlive aesthetic throughout`,
 
-  abdomen: `This scan shows fetal abdominal anatomy. CRITICAL: identify the exact abdominal cross-section plane and render that SAME plane. Transform the visible structures (abdominal wall, stomach, liver, kidneys, umbilical vessels, bowel, aorta/IVC as applicable) into a 3D anatomical rendering matching the ultrasound composition 1:1. Only render organs and structures that are visible in this specific scan plane. Do NOT render a full fetus.`,
+  abdomen: `This scan shows fetal abdominal anatomy.
 
-  fullBody: `This scan shows the full fetal body. Transform it into a 3D anatomical rendering preserving the EXACT same body position, orientation, and framing. Show skeletal system, major organs, and soft tissue layers as visible in the scan. The fetal pose and spatial arrangement must match the input 1:1.`,
+SPATIAL FIDELITY (highest priority): Every structure must occupy the EXACT same position in the output as in the input scan. Do NOT recenter or recompose.
+
+WHAT TO RENDER: Show the ABDOMINAL CROSS-SECTION with body context — matching the exact layout of the scan:
+- Abdominal ovoid silhouette with semi-transparent abdominal wall in warm amber/skin tones
+- Internal organs in their exact positions from the scan: stomach (fluid-filled dark sphere), liver (warm amber right lobe), kidneys if visible, umbilical vein tracking to liver
+- Spine posteriorly as warm ivory bone
+- Color palette: warm amber/golden for soft tissue, near-black fluid for hollow organs, warm ivory for bone
+- Dark background, warm HDlive aesthetic`,
+
+  fullBody: `This scan shows the full fetal body.
+
+SPATIAL FIDELITY (highest priority): The fetal pose, curl, orientation, and position must match the input scan EXACTLY. Do NOT repose or recenter.
+
+WHAT TO RENDER: Show the COMPLETE FETAL FIGURE with warm translucent skin revealing underlying anatomy:
+- Skin: warm translucent amber/peach tones
+- Skeletal system (spine, ribs, skull, limbs) visible through the skin in warm ivory/golden bone tones
+- Major organs visible where appropriate
+- Same fetal position and orientation as the input scan
+- Dark background, warm HDlive 3D ultrasound aesthetic throughout`,
 };
 
-function buildRenderingInstruction(anatomicalRegion: AnatomicalRegion): string {
-  if (anatomicalRegion === 'heart') {
-    // Heart rendering style is fully specified in realisticRegionDetails.heart
-    return '';
-  }
-  return 'Rendering: clean medical illustration with warm tones for tissue, ivory for bone. Solid dark background (near black). Soft volumetric lighting emphasizing anatomical depth and layering.';
-}
 
 function buildRealisticPrompt(
   creativity: number,
@@ -134,20 +160,13 @@ function buildRealisticPrompt(
   const regionSubject = regionScanSubject[anatomicalRegion];
   const regionDetail = realisticRegionDetails[anatomicalRegion];
 
-  const base = `CONTEXT: This is a medical educational illustration for an obstetrics textbook. The input image is ${scanDesc} ${regionSubject}. Transform this clinical ultrasound into a 3D anatomical rendering in the style of a Netter-style medical atlas or professional anatomy app (Complete Anatomy, Visible Body). This is strictly a scientific medical visualization — no photographs, no real people.
+  const base = `CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization in the style of HDlive enhanced 3D fetal rendering. The output must look like the same scan but rendered with perfect anatomical clarity and warm amber/skin-tone colors — like a high-fidelity render from professional fetal visualization software. The input is ${scanDesc} ${regionSubject}.
 
-COMPOSITION FIDELITY (highest priority):
-- This is a VISUAL TRANSLATION of the input scan — NOT a free-form illustration.
-- The output MUST preserve the EXACT same viewing plane as the input (sagittal→sagittal, axial→axial, coronal→coronal, 4-chamber→4-chamber).
-- The structures must occupy the SAME spatial positions and proportions as in the ultrasound.
-- Do NOT reinterpret the scan from a different angle or generate a generic textbook diagram.
-- Render ONLY structures visible in this specific scan — do not invent anatomy not shown.
+SPATIAL FIDELITY (non-negotiable): The output is a direct visual translation of the input scan. Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound. If something is on the left in the echo, it stays on the left. If something is at the top, it stays at the top. Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.
 
 ${regionDetail}
 
-${buildRenderingInstruction(anatomicalRegion)}
-
-ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. Reconstruct 3D depth from the visible slice while preserving the exact same cross-sectional plane and composition. Do not fabricate structures not visible in the scan.' : ''}`;
+ZERO text of any kind — no anatomical labels (no "LV", "RV", "LA", "RA", "IVS" or any abbreviations), ZERO measurement markers, ZERO arrows, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs. Pure visual rendering with no text whatsoever.${scanType === '2d' ? '\n\nNote: 2D ultrasound. Reconstruct 3D depth from the visible slice while preserving the exact same spatial layout. Do not fabricate structures not visible in the scan.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'
@@ -325,22 +344,15 @@ function buildEnhancedRealisticPrompt(
   const regionDetail = realisticRegionDetails[anatomicalRegion];
   const visionBlock = buildVisionOrganBlock(analysis);
 
-  const base = `CONTEXT: This is a medical educational illustration for an obstetrics textbook. The input image is ${scanDesc} ${regionSubject}. Transform this clinical ultrasound into a 3D anatomical rendering in the style of a Netter-style medical atlas or professional anatomy app (Complete Anatomy, Visible Body). This is strictly a scientific medical visualization — no photographs, no real people.
+  const base = `CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization in the style of HDlive enhanced 3D fetal rendering. The output must look like the same scan but rendered with perfect anatomical clarity and warm amber/skin-tone colors — like a high-fidelity render from professional fetal visualization software. The input is ${scanDesc} ${regionSubject}.
 
 ${visionBlock}
 
-COMPOSITION FIDELITY (highest priority):
-- This is a VISUAL TRANSLATION of the input scan — NOT a free-form illustration.
-- The analysis above identifies the exact view plane as "${analysis.organDetails?.viewPlane ?? 'unknown'}". Render that SAME plane.
-- The structures must occupy the SAME spatial positions and proportions as in the ultrasound.
-- Do NOT reinterpret the scan from a different angle or generate a generic textbook diagram.
-- Render ONLY structures visible in this specific scan — do not invent anatomy not shown.
+SPATIAL FIDELITY (non-negotiable): The output is a direct visual translation of the input scan. Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound — as confirmed by the vision analysis above. The view plane identified is "${analysis.organDetails?.viewPlane ?? 'unknown'}". Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.
 
 ${regionDetail}
 
-${buildRenderingInstruction(anatomicalRegion)}
-
-ZERO ultrasound artifacts, ZERO measurement markers, ZERO text, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs.${scanType === '2d' ? '\n\nNote: 2D ultrasound cross-section. The vision analysis has already identified the visible structures — use those descriptions to guide the 3D reconstruction.' : ''}`;
+ZERO text of any kind — no anatomical labels (no "LV", "RV", "LA", "RA", "IVS" or any abbreviations), ZERO measurement markers, ZERO arrows, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs. Pure visual rendering with no text whatsoever.${scanType === '2d' ? '\n\nNote: 2D ultrasound. The vision analysis has already identified the visible structures — use those descriptions to guide the 3D reconstruction while preserving exact spatial layout.' : ''}`;
 
   const skinToneModifier =
     skinTone === 'moreno'
