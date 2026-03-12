@@ -134,6 +134,7 @@
   },
   "landing": {
     "nav": {
+      "home": "Home",
       "process": "Process",
       "results": "Results",
       "faq": "FAQ",

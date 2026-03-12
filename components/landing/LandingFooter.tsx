@@ -8,7 +8,7 @@ export default function LandingFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="bg-white border-t border-gray-100 py-10">
+    <footer className="bg-white border-t-2 border-accent/15 py-10">
       <div className="max-w-5xl mx-auto px-5">
         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
           {/* Brand */}
@@ -23,8 +23,8 @@ export default function LandingFooter() {
 
           {/* Links */}
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-text-secondary">
-            <a href="#proceso" className="hover:text-accent transition-colors">{t('process')}</a>
-            <a href="#resultados" className="hover:text-accent transition-colors">{t('results')}</a>
+            <a href="/#proceso" className="hover:text-accent transition-colors">{t('process')}</a>
+            <a href="/#resultados" className="hover:text-accent transition-colors">{t('results')}</a>
             <a href="/faq" className="hover:text-accent transition-colors">FAQ</a>
             <span className="text-gray-200">|</span>
             <a href="/privacidad" className="hover:text-accent transition-colors">{t('privacy')}</a>

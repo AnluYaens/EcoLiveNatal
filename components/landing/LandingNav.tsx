@@ -1,19 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { APP_NAME, CLINIC_LOGO, CLINIC_NAME } from '@/lib/constants';
 
+/** Smooth-scroll to an element by ID, or navigate home first if on a different page. */
+function useSectionNav() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHome = pathname === '/' || pathname === '/es' || pathname === '/en';
+
+  return useCallback(
+    (sectionId: string) => {
+      if (isHome) {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+      }
+      router.push(`/#${sectionId}`);
+    },
+    [isHome, router],
+  );
+}
+
 export default function LandingNav() {
   const t = useTranslations('landing.nav');
   const [menuOpen, setMenuOpen] = useState(false);
+  const scrollTo = useSectionNav();
+
+  const linkClass = 'hover:text-accent transition-colors cursor-pointer';
 
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100/80">
       <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5">
+        {/* Logo — links to home */}
+        <Link href="/" className="flex items-center gap-2.5">
           {CLINIC_LOGO ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={CLINIC_LOGO} alt={CLINIC_NAME || APP_NAME} className="h-8 object-contain" />
@@ -27,13 +52,14 @@ export default function LandingNav() {
               <span className="text-base font-bold text-text-primary tracking-tight">{APP_NAME}</span>
             </>
           )}
-        </div>
+        </Link>
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
-          <a href="#proceso" className="hover:text-accent transition-colors">{t('process')}</a>
-          <a href="#resultados" className="hover:text-accent transition-colors">{t('results')}</a>
-          <a href="/faq" className="hover:text-accent transition-colors">{t('faq')}</a>
+          <Link href="/" className={linkClass}>{t('home')}</Link>
+          <button type="button" onClick={() => scrollTo('proceso')} className={linkClass}>{t('process')}</button>
+          <button type="button" onClick={() => scrollTo('resultados')} className={linkClass}>{t('results')}</button>
+          <Link href="/faq" className={linkClass}>{t('faq')}</Link>
         </div>
 
         {/* CTA + hamburger */}
@@ -65,9 +91,10 @@ export default function LandingNav() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-gray-100 px-5 py-4 flex flex-col gap-4 text-sm font-medium text-text-secondary bg-white">
-          <a href="#proceso" onClick={() => setMenuOpen(false)} className="hover:text-accent transition-colors">{t('process')}</a>
-          <a href="#resultados" onClick={() => setMenuOpen(false)} className="hover:text-accent transition-colors">{t('results')}</a>
-          <a href="#faq" onClick={() => setMenuOpen(false)} className="hover:text-accent transition-colors">{t('faq')}</a>
+          <Link href="/" onClick={() => setMenuOpen(false)} className={linkClass}>{t('home')}</Link>
+          <button type="button" onClick={() => { scrollTo('proceso'); setMenuOpen(false); }} className={`${linkClass} text-left`}>{t('process')}</button>
+          <button type="button" onClick={() => { scrollTo('resultados'); setMenuOpen(false); }} className={`${linkClass} text-left`}>{t('results')}</button>
+          <Link href="/faq" onClick={() => setMenuOpen(false)} className={linkClass}>{t('faq')}</Link>
         </div>
       )}
     </nav>
