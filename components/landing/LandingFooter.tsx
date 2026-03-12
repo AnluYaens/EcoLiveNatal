@@ -25,7 +25,7 @@ export default function LandingFooter() {
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-text-secondary">
             <a href="#proceso" className="hover:text-accent transition-colors">{t('process')}</a>
             <a href="#resultados" className="hover:text-accent transition-colors">{t('results')}</a>
-            <a href="#faq" className="hover:text-accent transition-colors">FAQ</a>
+            <a href="/faq" className="hover:text-accent transition-colors">FAQ</a>
             <span className="text-gray-200">|</span>
             <a href="/privacidad" className="hover:text-accent transition-colors">{t('privacy')}</a>
             <a href="/terminos" className="hover:text-accent transition-colors">{t('terms')}</a>

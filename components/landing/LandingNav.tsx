@@ -33,7 +33,7 @@ export default function LandingNav() {
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
           <a href="#proceso" className="hover:text-accent transition-colors">{t('process')}</a>
           <a href="#resultados" className="hover:text-accent transition-colors">{t('results')}</a>
-          <a href="#faq" className="hover:text-accent transition-colors">{t('faq')}</a>
+          <a href="/faq" className="hover:text-accent transition-colors">{t('faq')}</a>
         </div>
 
         {/* CTA + hamburger */}

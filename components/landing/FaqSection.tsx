@@ -10,7 +10,7 @@ export default function FaqSection() {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
-    <section id="faq" className="max-w-3xl mx-auto px-5 py-16 scroll-mt-16">
+    <section className="max-w-3xl mx-auto px-5 py-16">
       <h2 className="text-2xl md:text-3xl font-bold text-text-primary text-center mb-10">
         {t('title')}
       </h2>
@@ -20,6 +20,11 @@ export default function FaqSection() {
           const answerKey = key.replace('q', 'a') as 'a1' | 'a2' | 'a3' | 'a4' | 'a5';
           const isOpen = open === key;
 
+          const chevronBg = isOpen ? 'bg-accent' : 'bg-gray-100';
+          const chevronIcon = isOpen
+            ? 'rotate-180 text-white'
+            : 'text-text-secondary';
+
           return (
             <div key={key}>
               <button
@@ -28,10 +33,14 @@ export default function FaqSection() {
                 className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50/50 transition-colors"
                 aria-expanded={isOpen}
               >
-                <span className="font-semibold text-text-primary text-sm pr-4">{t(key)}</span>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${isOpen ? 'bg-accent' : 'bg-gray-100'}`}>
+                <span className="font-semibold text-text-primary text-sm pr-4">
+                  {t(key)}
+                </span>
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${chevronBg}`}
+                >
                   <svg
-                    className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : 'text-text-secondary'}`}
+                    className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${chevronIcon}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
