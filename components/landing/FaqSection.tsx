@@ -32,9 +32,10 @@ export default function FaqSection() {
                 onClick={() => setOpen(isOpen ? null : key)}
                 className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50/50 transition-colors"
                 aria-expanded={isOpen}
+                aria-controls={`faq-answer-${key}`}
               >
                 <span className="font-semibold text-text-primary text-sm pr-4">
-                  {t(key)}
+                  {t(key as 'q1' | 'q2' | 'q3' | 'q4' | 'q5')}
                 </span>
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${chevronBg}`}
@@ -51,7 +52,7 @@ export default function FaqSection() {
               </button>
 
               {isOpen && (
-                <div className="px-6 pb-5">
+                <div id={`faq-answer-${key}`} className="px-6 pb-5">
                   <p className="text-sm text-text-secondary leading-relaxed">{t(answerKey)}</p>
                 </div>
               )}
