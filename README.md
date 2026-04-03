@@ -1,254 +1,252 @@
 # EcoLiveNatal
 
-AI-powered web application that transforms 3D/4D fetal ultrasound photos into photorealistic newborn portrait illustrations — built for clinics and fertility specialists.
+EcoLiveNatal is a Next.js application for clinics that turns fetal ultrasound images into AI-generated outputs:
 
-> **Medical Disclaimer:** All generated images are illustrative and for emotional purposes only. They are not diagnostic, do not represent the actual appearance of the baby, and must not be used for any medical or clinical decision-making.
+- Newborn portrait renders for fetal face and full-body scans
+- Anatomical HDlive-style visualizations for heart, brain, spine, abdomen, and other non-portrait regions
 
----
+The product includes a public marketing site, a token-gated generation app, bilingual UI (`es` / `en`), and per-account daily usage limits.
 
-## Demo
-
-[![Demo EcoLiveNatal](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=VIDEO_ID)
-
-> Replace `VIDEO_ID` in both URLs with your YouTube video ID before publishing.
+> **Medical disclaimer:** All generated images are illustrative and for emotional or educational use only. They are not diagnostic and must not be used for medical decision-making.
 
 ---
 
-## Features
+## What the app does
 
-- Mobile-first experience optimized for clinic staff (iOS, Android, desktop)
-- AI portrait generation powered by OpenAI
-- Multi-tenant support — independent accounts per doctor or clinic with configurable daily limits
-- Guided 4-step wizard: upload, crop, generate, result
-- Bilingual interface (Spanish / English) with full i18n
-- Privacy-first processing — no server-side image storage
-- Clinic white-label branding via environment variables
-
----
-
-## How It Works
-
-1. Clinic staff uploads a 3D/4D ultrasound image (JPG, PNG, HEIC supported)
-2. User adjusts the crop area to center the baby's face
-3. Staff selects skin tone and confirms generation
-4. AI generates an illustrative newborn portrait
-5. Staff downloads or shares the result
+- Public landing pages at localized routes such as `/es` and `/en`
+- Protected generation app at `/[locale]/app`
+- Token-based access gate backed by Upstash Redis
+- Upload -> crop -> generate -> result flow
+- Client-side HEIC/HEIF conversion via `heic2any`
+- OpenAI-powered portrait generation for face and full-body portrait mode
+- Optional vision-analysis-assisted prompting for better geometry retention
+- Optional Google GenAI path for non-face anatomical renders
+- Daily per-account limits plus burst rate limiting and brute-force protection
 
 ---
 
-## Tech Stack
+## Current flow
 
-| Layer            | Technology                                         |
-| ---------------- | -------------------------------------------------- |
-| Framework        | Next.js 14 (App Router, TypeScript)                |
-| Styling          | Tailwind CSS                                       |
-| AI               | OpenAI API — image generation                      |
-| Image processing | sharp (server-side), react-easy-crop (client-side) |
-| Validation       | Zod                                                |
-| i18n             | next-intl (ES / EN)                                |
-| HEIC conversion  | heic2any (client-side, no server dependency)       |
+1. User opens the landing page and requests access if needed.
+2. User enters an access token in the app gate.
+3. User uploads an ultrasound image and crops it.
+4. User selects region, scan type, generation mode, skin tone, and optional clinical notes.
+5. The server preprocesses the image, validates inputs, builds the prompt, and generates the output.
+6. User downloads, shares, regenerates, or starts a new session.
 
 ---
 
-## Security Architecture
+## Tech stack
 
-Security is layered across multiple levels. The system follows Kerckhoffs' principle.
-
-| Layer                     | Mechanism                                                      |
-| ------------------------- | -------------------------------------------------------------- |
-| Access control            | 6-digit PIN per account, verified server-side on every request |
-| Brute-force protection    | IP lockout after 5 failed attempts (15-minute cooldown)        |
-| Per-account rate limiting | Configurable daily request limit per doctor/clinic             |
-| Cross-account isolation   | PIN and account ID are cross-validated on every API call       |
-| Burst protection          | In-memory IP rate limiter (5 requests/minute)                  |
-| Input validation          | Zod schema validation on all API inputs                        |
-| Secret management         | All credentials stored outside the repository (`.gitignore`)   |
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 14, React 18, TypeScript |
+| Styling | Tailwind CSS |
+| i18n | `next-intl` |
+| Portrait generation | OpenAI image editing API |
+| Vision analysis | OpenAI multimodal analysis |
+| Optional anatomical generation | Google GenAI |
+| Image processing | `sharp`, `react-easy-crop`, `heic2any` |
+| Validation | `zod` |
+| Auth and quota storage | Upstash Redis |
+| Tests | Vitest |
 
 ---
 
-## Quick Start
+## Quick start
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/ecolivenatal.git
-cd ecolivenatal
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Set up environment variables
+### 2. Create your env file
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your `OPENAI_API_KEY`. Never commit this file.
+Fill in the required secrets before running the app.
 
-### 4. Configure accounts
+### 3. Configure Upstash Redis
+
+EcoLiveNatal currently expects token authentication data in Redis. Create an Upstash Redis database and set:
+
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+
+### 4. Create access tokens
+
+Use the included script to generate a token and store the account metadata in Redis:
 
 ```bash
-cp config/accounts.example.json config/accounts.json
+npx tsx scripts/generate-token.ts --name "Dr. Garcia" --id dr-garcia --limit 50
 ```
 
-Edit `config/accounts.json` with your accounts (see [Multi-Tenant Configuration](#multi-tenant-configuration)). Never commit this file — it contains PINs.
+This stores the token payload in Redis under the app namespace and prints the UUID token you can share with the clinic user.
 
-### 5. Run in development
+### 5. Run the app
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Then open:
+
+- Landing page: `http://localhost:3000/es`
+- App: `http://localhost:3000/es/app`
 
 ---
 
-## Multi-Tenant Configuration
+## Environment variables
 
-Each doctor or clinic gets an independent account with its own PIN and daily generation limit. Accounts are defined in `config/accounts.json` (server-side only, never committed).
+Reference: [`.env.example`](./.env.example)
 
-```json
-{
-  "accounts": [
-    {
-      "id": "clinic-a",
-      "pin": "123456",
-      "name": "Dr. García",
-      "dailyLimit": 100
-    },
-    {
-      "id": "clinic-b",
-      "pin": "654321",
-      "name": "Dr. López",
-      "dailyLimit": 10
-    },
-    {
-      "id": "clinic-c",
-      "pin": "112233",
-      "name": "Dra. Martínez",
-      "dailyLimit": 40
-    }
-  ]
-}
-```
-
-**Rules:**
-
-- PINs must be exactly 6 digits and unique across all accounts
-- `dailyLimit: 0` means unlimited
-- `id` is the stable internal identifier — never change it once set, as it keys usage tracking
-- Usage resets automatically at UTC midnight each day
-- Runtime usage data is stored in `data/usage.json` (auto-created, git-ignored)
-
-To add or update an account: edit `config/accounts.json` and restart the server.
+| Variable | Required | Description |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | Yes | Required for portrait generation and vision analysis |
+| `UPSTASH_REDIS_REST_URL` | Yes | Redis REST URL for token lookup and usage tracking |
+| `UPSTASH_REDIS_REST_TOKEN` | Yes | Redis REST token |
+| `NEXT_PUBLIC_APP_TITLE` | No | App title shown in the UI |
+| `NEXT_PUBLIC_CLINIC_NAME` | No | Clinic branding label |
+| `NEXT_PUBLIC_CLINIC_LOGO_URL` | No | Clinic logo shown in the header |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | No | WhatsApp number used in landing CTA and token-request links |
+| `MOCK_API` | No | Set to `true` to return a mock image instead of calling OpenAI |
+| `ENABLE_SESSION_IMAGE_CACHE` | No | Enables in-memory caching for identical requests |
+| `ENABLE_VISION_ANALYSIS` | No | Enables ultrasound analysis before prompt assembly |
+| `USE_GEMINI_FOR_ORGANS` | No | Routes non-face anatomical renders through Google GenAI |
+| `GOOGLE_GENAI_API_KEY` | Only if `USE_GEMINI_FOR_ORGANS=true` | API key for Google GenAI |
 
 ---
 
-## Environment Variables
+## Token and account model
 
-| Variable                      | Required | Description                                                           |
-| ----------------------------- | -------- | --------------------------------------------------------------------- |
-| `OPENAI_API_KEY`              | Yes      | API key for image generation                                          |
-| `NEXT_PUBLIC_APP_TITLE`       | No       | App title displayed in the UI (default: `EcoLiveNatal`)               |
-| `NEXT_PUBLIC_CLINIC_NAME`     | No       | Clinic name for white-label branding                                  |
-| `NEXT_PUBLIC_CLINIC_LOGO_URL` | No       | Clinic logo URL shown in the header                                   |
-| `MOCK_API`                    | No       | Set to `true` to skip OpenAI and return a mock image (for UI testing) |
-| `ENABLE_SESSION_IMAGE_CACHE`  | No       | Set to `true` to cache identical generation requests in memory        |
+Access is token-based, not PIN-file-based.
 
-Reference: `.env.example`
+- Tokens are UUIDs stored in Redis.
+- Each token maps to an account payload with `id`, `name`, and `dailyLimit`.
+- `/api/verify-token` validates the token and returns the resolved account metadata.
+- `/api/generate` re-validates the token and enforces the account quota.
+
+Relevant Redis key patterns:
+
+- `ecln:token:<uuid>`
+- `ecln:account:<accountId>`
+- `ecln:usage:<YYYY-MM-DD>:<accountId>`
+
+`dailyLimit: 0` means unlimited usage.
 
 ---
 
-## Project Structure
+## Security model
 
-```
+| Layer | Mechanism |
+| --- | --- |
+| Access control | UUID token required for app access |
+| Token verification | Server-side Redis lookup on every protected request |
+| Burst protection | In-memory IP limiter on `/api/generate` |
+| Brute-force protection | Per-IP lockout logic on `/api/verify-token` |
+| Daily quota | Per-account request limit |
+| Input safety | Zod validation plus server-side image validation |
+| Privacy | No intentional image persistence by the app |
+
+---
+
+## Project structure
+
+```text
 ecolivenatal/
 ├── app/
 │   ├── api/
-│   │   ├── generate/        # Portrait generation endpoint
-│   │   └── verify-pin/      # Account authentication endpoint
-│   └── [locale]/            # Localized pages (ES / EN)
-├── components/              # UI components and wizard steps
-├── config/
-│   ├── accounts.json        # Account definitions — git-ignored
-│   └── accounts.example.json
-├── data/
-│   └── usage.json           # Runtime daily usage tracking — git-ignored
-├── i18n/                    # next-intl configuration
+│   │   ├── generate/
+│   │   └── verify-token/
+│   ├── [locale]/
+│   │   ├── app/
+│   │   └── faq/
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── landing/
+│   ├── CropStep.tsx
+│   ├── GenerateStep.tsx
+│   ├── TokenGate.tsx
+│   ├── ResultStep.tsx
+│   └── UploadStep.tsx
 ├── lib/
-│   ├── accountStore.ts      # Multi-tenant account management
-│   ├── bruteForce.ts        # Brute-force protection
-│   ├── constants.ts         # Shared configuration constants
-│   ├── imagePreprocess.ts   # Ultrasound preprocessing
-│   ├── openaiClient.ts      # OpenAI wrapper
-│   ├── promptBuilder.ts     # AI prompt assembly
-│   └── validation.ts        # Zod schemas
+│   ├── accountStore.ts
+│   ├── bruteForce.ts
+│   ├── constants.ts
+│   ├── cropUtils.ts
+│   ├── geminiClient.ts
+│   ├── imagePreprocess.ts
+│   ├── openaiClient.ts
+│   ├── promptBuilder.ts
+│   ├── usageStore.ts
+│   ├── validation.ts
+│   └── visionAnalysis.ts
 ├── messages/
-│   ├── es.json              # Spanish translations
-│   └── en.json              # English translations
-├── .env.example
-└── LICENSE
+├── scripts/
+│   └── generate-token.ts
+└── config/
+    └── accounts.example.json
+```
+
+Note: `config/accounts.example.json` remains in the repo as sample material, but the current runtime auth flow uses Redis-backed tokens.
+
+---
+
+## Deployment notes
+
+### Recommended
+
+Deploy with:
+
+- Redis configured
+- HTTPS enabled
+- `OPENAI_API_KEY` present
+- `NEXT_PUBLIC_WHATSAPP_NUMBER` configured if you want the request-access CTA
+
+### Vercel
+
+Works on Vercel, but note:
+
+- in-memory rate limiting resets on cold starts
+- in-memory session image cache is per instance
+- Redis is required for shared token and usage state
+
+---
+
+## Privacy notes
+
+- The app does not intentionally persist uploaded ultrasound images.
+- Generated outputs are returned directly to the client.
+- External AI providers may apply their own data retention or policy controls.
+- Review hosting logs, CDN logs, and provider policies before production use with patient data.
+
+---
+
+## Useful commands
+
+```bash
+npm run dev
+npm run build
+npm run lint
+npm test
 ```
 
 ---
 
-## Deployment
+## Verification
 
-### Vercel
+Before shipping changes:
 
-1. Push to GitHub
-2. Import the repository into Vercel
-3. Add environment variables in the Vercel dashboard
-4. Deploy — **note:** Vercel is serverless; `config/accounts.json` and `data/usage.json` require a persistent filesystem or an alternative storage backend (e.g., Upstash Redis) in this deployment model
-
-### Self-Hosted (Recommended for this project)
-
-This project is optimized for self-hosted deployments (VPS, dedicated server) where a persistent filesystem is available.
-
-Minimum production requirements:
-
-- HTTPS enabled
-- `config/accounts.json` present and configured
-- Secrets managed outside the repository
-- Process manager (e.g., PM2) for uptime
-
----
-
-## Privacy & Security Notes
-
-- Ultrasound images are processed per request and are not intentionally stored server-side by this application
-- Images submitted to the OpenAI API are subject to OpenAI's data retention and privacy policies — review these before patient-facing deployment
-- All sensitive configuration (`config/accounts.json`, `.env`) is excluded from version control via `.gitignore`
-- Review your hosting provider's logging and retention settings before going live
-
----
-
-## Production Checklist
-
-- `npm run build` passes with no TypeScript errors
-- `config/accounts.json` configured with real 6-digit PINs
-- `OPENAI_API_KEY` set in production environment
-- Clinic branding variables configured (optional)
-- Medical disclaimer visible in the UI
-- HTTPS enabled on the deployment
-- Deployment tested with `MOCK_API=true` before enabling live generation
-
----
-
-## Roadmap
-
-- [ ] Animated video portrait from 4D scan
-- [ ] Shareable patient link (time-limited)
-- [ ] Twin workflow support
-- [ ] Custom clinic watermark on downloads
-- [ ] Admin dashboard for usage analytics
+- `npm run build` must pass
+- token verification flow must work against Redis
+- generation flow should be tested with `MOCK_API=true` before live API usage
 
 ---
 
 ## License
 
-Copyright (c) 2026. All rights reserved. See [LICENSE](./LICENSE) for details.
+Copyright (c) 2026. All rights reserved. See [LICENSE](./LICENSE).
