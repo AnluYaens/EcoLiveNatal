@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
-import OpenAI from 'openai';
 import sharp from 'sharp';
-import { preprocessUltrasound } from '@/lib/imagePreprocess';
+import { preprocessUltrasound, extractYellowOverlay } from '@/lib/imagePreprocess';
 import { generatePortrait } from '@/lib/openaiClient';
-import { buildPrompt, buildEnhancedPrompt } from '@/lib/promptBuilder';
+import { buildPrompt, buildEnhancedPrompt, buildGeminiPrompt } from '@/lib/promptBuilder';
 import { analyzeUltrasound } from '@/lib/visionAnalysis';
 import type { UltrasoundAnalysis } from '@/lib/visionAnalysis';
+import { generateAnatomicalImage } from '@/lib/geminiClient';
 import { GenerateSchema } from '@/lib/validation';
 import { MAX_FILE_SIZE_BYTES, SUPPORTED_MIME_TYPES } from '@/lib/constants';
 import * as accountStore from '@/lib/accountStore';
+import { createApiErrorResponse } from '@/lib/apiErrors';
 
 // ⚠️ In-memory rate limiting — resets on each serverless cold start.
 // For production multi-instance deployments, replace with Redis/Upstash.
@@ -17,10 +18,12 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 60_000;
-const OPENAI_TIMEOUT_MS = 55_000;
+const OPENAI_TIMEOUT_MS = 60_000;
+const GEMINI_TIMEOUT_MS = 120_000;
+const USE_GEMINI_FOR_ORGANS = process.env.USE_GEMINI_FOR_ORGANS === 'true';
 const IMAGE_CACHE_TTL_MS = 45 * 60_000;
 const IMAGE_CACHE_MAX_ENTRIES = 100;
-const PROMPT_FINGERPRINT_VERSION = 'v2-vision-enhanced';
+const PROMPT_FINGERPRINT_VERSION = 'v5-portrait-mask';
 const ENABLE_SESSION_IMAGE_CACHE = process.env.ENABLE_SESSION_IMAGE_CACHE === 'true';
 const ENABLE_VISION_ANALYSIS = process.env.ENABLE_VISION_ANALYSIS === 'true';
 
@@ -162,60 +165,42 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+function isContentPolicyError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('code' in err)) {
+    return false;
+  }
+
+  const code = err.code;
+  return code === 'moderation_blocked' || code === 'content_policy_violation';
+}
+
 export async function POST(req: NextRequest) {
   // 1. Rate limit
   const ip = getIp(req);
   if (!checkRateLimit(ip)) {
-    return NextResponse.json(
-      { error: 'Demasiadas solicitudes. Intenta en unos minutos.' },
-      { status: 429 }
-    );
+    return createApiErrorResponse('rateLimit', 429);
   }
 
   // 2. Content-Type check
   const contentType = req.headers.get('content-type') ?? '';
   if (!contentType.includes('multipart/form-data')) {
-    return NextResponse.json(
-      { error: 'Ocurrió un error inesperado. Intenta de nuevo.' },
-      { status: 400 }
-    );
+    return createApiErrorResponse('badRequest', 400);
   }
 
   // 3. Parse FormData
   let formData: FormData;
   try {
     formData = await req.formData();
-    console.log('Step 2: FormData parsed');
-  } catch (err) {
-    console.error('Generate API error:', err);
-    return NextResponse.json(
-      { error: 'Ocurrió un error inesperado. Intenta de nuevo.' },
-      { status: 400 }
-    );
+  } catch {
+    return createApiErrorResponse('badRequest', 400);
   }
 
   // 3a. Validate token + account
   const tokenRaw = formData.get('token');
   const accountIdRaw = formData.get('accountId');
-  console.log('Step 1: Token check');
   if (typeof tokenRaw !== 'string' || typeof accountIdRaw !== 'string') {
-    return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
+    return createApiErrorResponse('unauthorized', 403);
   }
-  const account = await accountStore.findByToken(tokenRaw);
-  if (!account || account.id !== accountIdRaw) {
-    return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
-  }
-
-  // 3b. Check daily limit
-  if (!(await accountStore.isWithinLimit(account.id, account.dailyLimit))) {
-    return NextResponse.json(
-      { error: 'dailyLimitExceeded' },
-      { status: 429 }
-    );
-  }
-
-  // 3c. Increment usage before calling OpenAI (prevents race condition)
-  void accountStore.incrementUsage(account.id);
 
   const imageFile = formData.get('image');
   const styleRaw = formData.get('style');
@@ -227,10 +212,7 @@ export async function POST(req: NextRequest) {
   const clinicalNotesRaw = formData.get('clinicalNotes');
 
   if (!(imageFile instanceof File)) {
-    return NextResponse.json(
-      { error: 'Ocurrió un error inesperado. Intenta de nuevo.' },
-      { status: 400 }
-    );
+    return createApiErrorResponse('badRequest', 400);
   }
 
   // 4. Validate style + creativity + skinTone with Zod
@@ -244,10 +226,7 @@ export async function POST(req: NextRequest) {
     clinicalNotes: typeof clinicalNotesRaw === 'string' ? clinicalNotesRaw : '',
   });
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Ocurrió un error inesperado. Intenta de nuevo.' },
-      { status: 400 }
-    );
+    return createApiErrorResponse('badRequest', 400);
   }
   const { style, creativity, skinTone, mode, scanType, anatomicalRegion, clinicalNotes } = parsed.data;
   // Sanitize clinical notes: strip control characters, keep only safe chars
@@ -256,68 +235,67 @@ export async function POST(req: NextRequest) {
     .replace(/[^\w\sáéíóúñüÁÉÍÓÚÑÜ.,;:()\/\-°²³+]/g, '')
     .trim()
     .slice(0, 200);
-  console.log('Step 3: Validation passed');
 
   // 5. Validate image
   if (imageFile.size > MAX_FILE_SIZE_BYTES) {
-    return NextResponse.json(
-      { error: 'La imagen es demasiado grande. Máximo 10MB.' },
-      { status: 400 }
-    );
+    return createApiErrorResponse('badRequest', 400);
   }
 
   const supportedTypes: readonly string[] = SUPPORTED_MIME_TYPES;
   if (!supportedTypes.includes(imageFile.type)) {
-    return NextResponse.json(
-      { error: 'Formato no soportado. Usa JPG o PNG.' },
-      { status: 400 }
-    );
+    return createApiErrorResponse('badRequest', 400);
   }
 
   // 6–8. Preprocess → build prompt → generate (60s timeout)
   try {
+    const account = await accountStore.findByToken(tokenRaw);
+    if (!account || account.id !== accountIdRaw) {
+      return createApiErrorResponse('unauthorized', 403);
+    }
+
     const arrayBuffer = await imageFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 6. Preprocess — for non-face regions, black out GE annotation panels first
-    console.log('Step 4: Image preprocessing');
-    const preCroppedBuffer = anatomicalRegion !== 'face'
-      ? await blackOutAnnotationPanels(buffer)
-      : buffer;
-    const processed = await preprocessUltrasound(preCroppedBuffer);
+    // 6. Preprocess — Gemini gets raw image (preserves annotations); OpenAI gets cleaned image
+    // Portrait mode for fullBody uses OpenAI (photorealistic baby portrait), not Gemini
+    const useGeminiPath = USE_GEMINI_FOR_ORGANS && anatomicalRegion !== 'face'
+      && !(mode === 'portrait' && anatomicalRegion === 'fullBody');
+    let processed: Buffer;
+    let yellowOverlay: Buffer | null = null;
+
+    if (useGeminiPath) {
+      // Extract yellow overlay before any resizing to prevent aliasing/blur on extraction
+      yellowOverlay = await extractYellowOverlay(buffer);
+
+      // Gemini: only resize, preserve all annotations/overlays
+      processed = await sharp(buffer)
+        .flatten({ background: { r: 0, g: 0, b: 0 } })
+        .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0 }, withoutEnlargement: true })
+        .png()
+        .toBuffer();
+    } else {
+      // OpenAI: black out annotation panels + top/bottom strips
+      const preCroppedBuffer = anatomicalRegion !== 'face'
+        ? await blackOutAnnotationPanels(buffer)
+        : buffer;
+      processed = await preprocessUltrasound(preCroppedBuffer);
+    }
 
     // 6b. Vision analysis (optional, non-blocking on failure)
     let analysis: UltrasoundAnalysis | null = null;
-    if (ENABLE_VISION_ANALYSIS && anatomicalRegion !== 'face') {
+    if (ENABLE_VISION_ANALYSIS) {
       try {
-        console.log('Step 5a: Running vision analysis');
-        analysis = await analyzeUltrasound(processed, anatomicalRegion, scanType, sanitizedNotes);
-        console.log(`Step 5a: Vision analysis ${analysis ? 'complete' : 'returned null (fallback to standard prompt)'}`);
+        const analysisInput = anatomicalRegion === 'face' ? buffer : processed;
+        analysis = await analyzeUltrasound(analysisInput, anatomicalRegion, scanType, sanitizedNotes);
       } catch {
-        console.warn('Step 5a: Vision analysis failed, using standard prompt');
+        analysis = null;
       }
     }
 
     // 7. Build prompt (enhanced if analysis available)
-    console.log('Step 5: Building prompt');
     const prompt = analysis
       ? buildEnhancedPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes, analysis)
       : buildPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes);
-
-    // Mock mode — skip OpenAI, return a 1×1 pink PNG for UI testing
-    if (process.env.MOCK_API === 'true') {
-      const mockPng = await sharp({
-        create: {
-          width: 1,
-          height: 1,
-          channels: 3,
-          background: { r: 232, g: 160, b: 160 },
-        },
-      })
-        .png()
-        .toBuffer();
-      return NextResponse.json({ image: mockPng.toString('base64') });
-    }
 
     let requestFingerprint: RequestFingerprint | null = null;
     if (ENABLE_SESSION_IMAGE_CACHE) {
@@ -330,27 +308,72 @@ export async function POST(req: NextRequest) {
       );
       const cachedImage = getCachedImage(requestFingerprint);
       if (cachedImage) {
-        console.log('Generate API: cache hit');
         return NextResponse.json({ image: cachedImage });
       }
     }
 
-    // 8. Generate with 60s timeout
-    console.log('Step 6: Calling OpenAI');
-    const rawBase64 = await Promise.race([
-      generatePortrait(processed, prompt),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('timeout')),
-          OPENAI_TIMEOUT_MS
-        )
-      ),
-    ]);
+    if (!(await accountStore.isWithinLimit(account.id, account.dailyLimit))) {
+      return createApiErrorResponse('dailyLimitExceeded', 429);
+    }
 
-    // 9. Post-processing: light sharpening + mode-specific color grading
-    console.log('Step 7: Post-processing');
+    // Mock mode — skip provider call, but still behaves like a successful generation.
+    if (process.env.MOCK_API === 'true') {
+      const mockPng = await sharp({
+        create: {
+          width: 1,
+          height: 1,
+          channels: 3,
+          background: { r: 232, g: 160, b: 160 },
+        },
+      })
+        .png()
+        .toBuffer();
+      const mockBase64 = mockPng.toString('base64');
+      if (ENABLE_SESSION_IMAGE_CACHE && requestFingerprint) {
+        setCachedImage(requestFingerprint, mockBase64);
+      }
+      await accountStore.incrementUsage(account.id);
+      return NextResponse.json({ image: mockBase64 });
+    }
+
+    // 8. Generate image — route organs to Gemini, faces to OpenAI
+    const geminiPrompt = useGeminiPath
+      ? buildGeminiPrompt(anatomicalRegion, scanType, sanitizedNotes, analysis)
+      : null;
+
+    // Get input dimensions before sending to Gemini
+    let originalWidth = 0;
+    let originalHeight = 0;
+    if (useGeminiPath) {
+      const inputMeta = await sharp(processed).metadata();
+      originalWidth = inputMeta.width ?? 1024;
+      originalHeight = inputMeta.height ?? 1024;
+    }
+
+    const rawBase64 = useGeminiPath
+      ? await Promise.race([
+          generateAnatomicalImage(processed, geminiPrompt!, originalWidth, originalHeight),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), GEMINI_TIMEOUT_MS)
+          ),
+        ])
+      : await Promise.race([
+          generatePortrait(processed, prompt),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), OPENAI_TIMEOUT_MS)
+          ),
+        ]);
+
+    // 9. Post-processing: remove padding from Gemini output + color grading
     const rawBuffer = Buffer.from(rawBase64, 'base64');
-    let postProcessed = sharp(rawBuffer);
+
+    let postInput = sharp(rawBuffer);
+    if (useGeminiPath) {
+      // Force Gemini output to match input dimensions exactly
+      postInput = postInput.resize(originalWidth, originalHeight, { fit: 'fill' });
+    }
+
+    let postProcessed = postInput;
 
     if (mode === 'portrait') {
       // Portrait: light sharpening + warm shift
@@ -364,6 +387,16 @@ export async function POST(req: NextRequest) {
         .modulate({ saturation: 1.08 });
     }
 
+    if (useGeminiPath && yellowOverlay) {
+      // Restamp the yellow medical tracking text and crosshairs on top of AI result
+      const tempBuffer = await postProcessed.png().toBuffer();
+      postProcessed = sharp(tempBuffer).composite([{ input: yellowOverlay, blend: 'over' }]);
+    }
+
+    // Trim the black padding that was added during preprocessing to restore original aspect
+    const untrimmedBuffer = await postProcessed.png().toBuffer();
+    postProcessed = sharp(untrimmedBuffer).trim({ background: '#000000' });
+
     const finalBuffer = await postProcessed.png().toBuffer();
     const base64 = finalBuffer.toString('base64');
 
@@ -371,32 +404,19 @@ export async function POST(req: NextRequest) {
       setCachedImage(requestFingerprint, base64);
     }
 
+    await accountStore.incrementUsage(account.id);
     return NextResponse.json({ image: base64 });
   } catch (err: unknown) {
+    // Timeout handling
     if (err instanceof Error && err.message === 'timeout') {
-      return NextResponse.json(
-        { error: 'La generación tardó demasiado. Intenta de nuevo.' },
-        { status: 504 }
-      );
+      return createApiErrorResponse('timeout', 504);
     }
 
-    if (err instanceof OpenAI.APIError) {
-      if (err.code === 'moderation_blocked' || err.code === 'content_policy_violation') {
-        return NextResponse.json(
-          {
-            error:
-              'La imagen no pudo procesarse. Intenta con una foto diferente.',
-          },
-          { status: 400 }
-        );
-      }
-    } else {
-      console.error('Generate API error:', err);
+    if (isContentPolicyError(err)) {
+      return createApiErrorResponse('contentBlock', 400);
     }
 
-    return NextResponse.json(
-      { error: 'Ocurrió un error inesperado. Intenta de nuevo.' },
-      { status: 500 }
-    );
+    console.error('Generate API request failed');
+    return createApiErrorResponse('generic', 500);
   }
 }
