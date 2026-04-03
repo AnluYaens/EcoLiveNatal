@@ -60,9 +60,47 @@ export async function preprocessUltrasound(
     ])
     .normalize() // auto-levels contrast enhancement
     .resize(1024, 1024, {
-      fit: 'inside',
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0 },
       withoutEnlargement: true,
     })
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Extract yellow overlays (text, crosshairs) from an ultrasound image.
+ * Returns a transparent PNG buffer containing only the yellow pixels.
+ */
+export async function extractYellowOverlay(inputBuffer: Buffer): Promise<Buffer> {
+  const image = sharp(inputBuffer);
+  const { data, info } = await image
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  for (let i = 0; i < data.length; i += info.channels) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    // Detect yellow: high red, high green, low blue
+    if (r > 180 && g > 180 && b < 100) {
+      // Keep pixel, fully opaque
+      data[i + 3] = 255;
+    } else {
+      // Make transparent
+      data[i + 3] = 0;
+    }
+  }
+
+  return sharp(data, {
+    raw: {
+      width: info.width,
+      height: info.height,
+      channels: info.channels,
+    },
+  })
     .png()
     .toBuffer();
 }

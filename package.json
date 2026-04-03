@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@google/genai": "^1.45.0",
     "@upstash/redis": "^1.36.3",
     "@vercel/analytics": "^2.0.0",
     "@vercel/speed-insights": "^2.0.0",
