@@ -8,7 +8,7 @@ export const SUPPORTED_MIME_TYPES = [
   'image/webp',
 ] as const;
 
-// Brute-force protection (verify-pin)
+// Brute-force protection (verify-token)
 export const BRUTE_FORCE_MAX_ATTEMPTS = 5;
 export const BRUTE_FORCE_WINDOW_MS = 10 * 60 * 1000;  // 10 min
 export const BRUTE_FORCE_LOCKOUT_MS = 15 * 60 * 1000; // 15 min
