@@ -22,6 +22,21 @@ const FaceDetailsSchema = z.object({
   expression: z.string(),
 });
 
+const SpatialLayoutSchema = z.object({
+  headTiltDegrees: z.number(),
+  chinElevationDegrees: z.number(),
+  facingDirection: z.enum(['facing-left', 'facing-right', 'facing-camera']),
+  subjectCenterX: z.number(),
+  subjectCenterY: z.number(),
+  subjectOccupancyPercent: z.number(),
+  noseTipX: z.number().optional(),
+  noseTipY: z.number().optional(),
+  chinX: z.number().optional(),
+  chinY: z.number().optional(),
+  foreheadX: z.number().optional(),
+  foreheadY: z.number().optional(),
+});
+
 const CardiacDetailsSchema = z.object({
   visibleChambers: z.array(z.string()),
   septalIntegrity: z.string(),
@@ -53,6 +68,7 @@ const UltrasoundAnalysisSchema = z.object({
   ]),
   imageQuality: z.enum(['excellent', 'good', 'fair', 'poor']),
   visibleStructures: z.array(z.string()),
+  spatialLayout: SpatialLayoutSchema.optional(),
   faceDetails: FaceDetailsSchema.optional(),
   organDetails: OrganDetailsSchema.optional(),
   overallDescription: z.string(),
@@ -64,12 +80,30 @@ export type UltrasoundAnalysis = z.infer<typeof UltrasoundAnalysisSchema>;
 
 const FACE_VISION_PROMPT = `Analyze this obstetric ultrasound showing a fetal face. Describe ONLY what you can clearly see — do not invent or assume features that are not visible.
 
+HAND DETECTION (important): Carefully examine the entire image for any hand, fingers, forearm, or limb-like shape touching or adjacent to the face. Hands in 3D/4D ultrasounds often appear as small rounded protrusions with finger-like subdivisions near the chin, cheek, or forehead. If you see ANY structure that could be a hand — even partially visible — report it in the handPosition field with its position relative to the face. Err on the side of reporting a possible hand rather than missing one.
+
+SPATIAL ANALYSIS (critical): You must also provide precise spatial layout data. Imagine the image as a coordinate system where (0,0) is the top-left corner and (1,1) is the bottom-right corner. Estimate the normalized (x, y) position of key facial landmarks within the image frame.
+
 Return a JSON object with this exact structure:
 {
   "estimatedGestationalWeeks": <number or null if unclear>,
   "viewAngle": <"frontal" | "profile-left" | "profile-right" | "three-quarter-left" | "three-quarter-right" | "unknown">,
   "imageQuality": <"excellent" | "good" | "fair" | "poor">,
   "visibleStructures": [<list of visible anatomical structures, e.g. "nose", "lips", "forehead", "right hand", "chin", "left ear">],
+  "spatialLayout": {
+    "headTiltDegrees": <number from -90 to +90. 0 = upright, positive = tilted clockwise (right ear down), negative = tilted counter-clockwise (left ear down). E.g. if the head is tilted 20 degrees to the right, use 20>,
+    "chinElevationDegrees": <number from -45 to +45. 0 = face looking straight ahead, positive = chin raised / face looking UPWARD, negative = chin tucked / face looking DOWNWARD. E.g. if the baby's face is angled slightly upward with chin raised, use +10 to +20. If the chin is tucked down, use -10 to -20>,
+    "facingDirection": <"facing-left" | "facing-right" | "facing-camera">,
+    "subjectCenterX": <0.0–1.0, horizontal center of the face in the frame. 0.0 = left edge, 0.5 = center, 1.0 = right edge>,
+    "subjectCenterY": <0.0–1.0, vertical center of the face in the frame. 0.0 = top edge, 0.5 = center, 1.0 = bottom edge>,
+    "subjectOccupancyPercent": <0–100, approximate percentage of the image area that the face/head occupies>,
+    "noseTipX": <0.0–1.0, X coordinate of the nose tip>,
+    "noseTipY": <0.0–1.0, Y coordinate of the nose tip>,
+    "chinX": <0.0–1.0, X coordinate of the chin>,
+    "chinY": <0.0–1.0, Y coordinate of the chin>,
+    "foreheadX": <0.0–1.0, X coordinate of the top of the forehead>,
+    "foreheadY": <0.0–1.0, Y coordinate of the top of the forehead>
+  },
   "faceDetails": {
     "noseDescription": "<specific shape: bridge curvature, tip shape, width — e.g. 'small button nose with rounded tip and narrow bridge'>",
     "lipDescription": "<specific shape: fullness, bow, parting — e.g. 'full lips, slightly parted, prominent upper lip bow'>",
