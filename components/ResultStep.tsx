@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { APP_NAME } from '@/lib/constants';
 import { stripDecorativeEmoji } from '@/lib/stripDecorativeEmoji';
+import { buildWhatsAppShareUrl } from '@/lib/whatsapp';
 
 interface ResultStepProps {
   imageBase64: string;
@@ -21,15 +22,15 @@ export default function ResultStep({
   const t = useTranslations('result');
   const tSteps = useTranslations('steps');
   const tDisclaimer = useTranslations('disclaimer');
+  const tWhatsApp = useTranslations('whatsapp');
   const title = stripDecorativeEmoji(t('title'));
   const downloadLabel = stripDecorativeEmoji(t('download'));
   const shareLabel = stripDecorativeEmoji(t('whatsapp'));
   const regenerateLabel = stripDecorativeEmoji(t('regenerate'));
   const newSessionLabel = stripDecorativeEmoji(t('newSession'));
   const beforeLabel = stripDecorativeEmoji(tSteps('crop'));
-  const afterLabel = stripDecorativeEmoji(tSteps('result'));
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'eco' | 'result' | 'split'>('split');
+  const [viewMode, setViewMode] = useState<'eco' | 'result'>('result');
 
   useEffect(() => {
     if (!sourceBlob) {
@@ -193,7 +194,7 @@ export default function ResultStep({
     }
 
     window.open(
-      `https://wa.me/?text=${encodeURIComponent(APP_NAME)}`,
+      buildWhatsAppShareUrl(tWhatsApp('shareResult', { appName: APP_NAME })),
       '_blank'
     );
   };
@@ -209,7 +210,7 @@ export default function ResultStep({
       {/* Result image */}
       <div className="rounded-2xl overflow-hidden shadow-lg bg-white">
         <div className="px-3 py-2.5">
-          <div className="grid grid-cols-3 gap-1.5 bg-gray-100 rounded-full p-1">
+          <div className="grid grid-cols-2 gap-1.5 bg-gray-100 rounded-full p-1">
             <button
               type="button"
               className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
@@ -233,18 +234,6 @@ export default function ResultStep({
             >
               {t('result')}
             </button>
-            <button
-              type="button"
-              className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
-                effectiveViewMode === 'split'
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-              onClick={() => setViewMode('split')}
-              disabled={!beforeUrl}
-            >
-              {t('split')}
-            </button>
           </div>
         </div>
 
@@ -255,7 +244,7 @@ export default function ResultStep({
               <img
                 src={beforeUrl}
                 alt={beforeLabel}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             </>
           )}
@@ -266,39 +255,18 @@ export default function ResultStep({
               <img
                 src={`data:image/png;base64,${imageBase64}`}
                 alt={title}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             </>
           )}
 
-          {effectiveViewMode === 'split' && beforeUrl && (
-            <div className="grid h-full grid-cols-2 gap-1 bg-gray-100 p-1">
-              <div className="relative overflow-hidden rounded-xl">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={beforeUrl}
-                  alt={beforeLabel}
-                  className="h-full w-full object-cover"
-                />
-                <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-text-primary shadow-sm">
-                  {t('eco')}
-                </div>
-              </div>
-
-              <div className="relative overflow-hidden rounded-xl">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`data:image/png;base64,${imageBase64}`}
-                  alt={afterLabel}
-                  className="h-full w-full object-cover"
-                />
-                <div className="pointer-events-none absolute right-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-text-primary shadow-sm">
-                  {t('result')}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Split view was removed from UI */}
         </div>
+      </div>
+      
+      {/* Banner underneath image */}
+      <div className="bg-accent-light/60 text-text-primary text-xs font-medium px-4 py-2.5 rounded-xl text-center shadow-sm">
+        {t('downloadHint')}
       </div>
 
       {/* Two action buttons side by side: Guardar + WhatsApp */}

@@ -1,13 +1,18 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { APP_NAME } from '@/lib/constants';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 
-const WA_NUMBER = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '').replace(/\D/g, '');
-const WA_TEXT = encodeURIComponent('Hola, quisiera solicitar acceso a EcoLiveNatal.');
+const WA_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '';
 
 export default function PricingSection() {
   const t = useTranslations('landing.pricing');
-  const waHref = WA_NUMBER ? `https://wa.me/${WA_NUMBER}?text=${WA_TEXT}` : '#cta';
+  const tWhatsApp = useTranslations('whatsapp');
+  const waHref = buildWhatsAppUrl(
+    WA_NUMBER,
+    tWhatsApp('requestAccess', { appName: APP_NAME }),
+  ) || '#cta';
 
   return (
     <section className="bg-white py-16">

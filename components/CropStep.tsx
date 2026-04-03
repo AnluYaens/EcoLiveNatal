@@ -81,7 +81,7 @@ export default function CropStep({ file, onCropped, onBack }: CropStepProps) {
             crop={crop}
             zoom={zoom}
             rotation={rotation}
-            aspect={1}
+            aspect={undefined}
             minZoom={0.5}
             objectFit="contain"
             onCropChange={setCrop}
