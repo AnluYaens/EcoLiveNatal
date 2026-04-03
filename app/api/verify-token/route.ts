@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import * as accountStore from '@/lib/accountStore';
 import { isLocked, recordFailedAttempt, clearAttempts } from '@/lib/bruteForce';
+import { createApiErrorResponse } from '@/lib/apiErrors';
 
 const TokenSchema = z.object({
   token: z.string().uuid(),
@@ -37,10 +38,7 @@ const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 export async function POST(req: NextRequest) {
   // 1. Global rate limit
   if (!checkGlobalRateLimit()) {
-    return NextResponse.json(
-      { error: 'Demasiadas solicitudes. Intenta en unos minutos.' },
-      { status: 429 }
-    );
+    return createApiErrorResponse('rateLimit', 429);
   }
 
   const ip = getIp(req);
@@ -49,10 +47,7 @@ export async function POST(req: NextRequest) {
   const lockStatus = isLocked(ip);
   if (lockStatus.locked) {
     const minutes = Math.ceil(lockStatus.secondsRemaining / 60);
-    return NextResponse.json(
-      { error: 'accountLocked', minutes },
-      { status: 429 }
-    );
+    return createApiErrorResponse('accountLocked', 429, { minutes });
   }
 
   // 3. Parse body
@@ -60,7 +55,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+    return createApiErrorResponse('badRequest', 400);
   }
 
   // 4. Validate token format (UUID)
@@ -68,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     recordFailedAttempt(ip);
     await delay(FAIL_DELAY_MS);
-    return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
+    return createApiErrorResponse('unauthorized', 403);
   }
 
   // 5. Look up account by token
@@ -76,7 +71,7 @@ export async function POST(req: NextRequest) {
   if (!account) {
     recordFailedAttempt(ip);
     await delay(FAIL_DELAY_MS);
-    return NextResponse.json({ error: 'Acceso no autorizado' }, { status: 403 });
+    return createApiErrorResponse('unauthorized', 403);
   }
 
   // 6. Success — clear brute-force attempts

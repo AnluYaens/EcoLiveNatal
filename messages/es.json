@@ -97,7 +97,8 @@
     "newSession": "Nueva sesión",
     "eco": "Eco",
     "result": "Resultado",
-    "split": "Comparar"
+    "split": "Comparar",
+    "downloadHint": "Descarga la imagen para obtener la comparativa lado a lado en alta resolución."
   },
   "errors": {
     "contentBlock": "La imagen no pudo procesarse. Intenta con una foto diferente.",
@@ -107,18 +108,24 @@
     "notUltrasound": "Esta imagen no parece ser un ultrasonido 3D/4D.",
     "generic": "Ocurrió un error inesperado. Intenta de nuevo.",
     "dailyLimitExceeded": "Has alcanzado el límite diario de generaciones. Intenta mañana.",
+    "badRequest": "Solicitud inválida. Intenta de nuevo.",
+    "unauthorized": "Acceso no autorizado.",
+    "accountLocked": "Demasiados intentos. Intenta en {minutes} minutos.",
     "retry": "Reintentar"
   },
-  "pinGate": {
+  "tokenGate": {
     "title": "Acceso profesional",
     "subtitle": "Ingresa el token que recibiste",
     "label": "TOKEN DE ACCESO",
     "placeholder": "Pegar token aquí...",
     "example": "Ej: 550e8400-e29b-41d4-a716-446655440000",
     "button": "Ingresar",
-    "error": "Token incorrecto",
-    "accountLocked": "Demasiados intentos. Intenta en {minutes} minutos.",
     "noCode": "¿No tienes token? Solicítalo aquí"
+  },
+  "whatsapp": {
+    "requestAccess": "Hola, quisiera solicitar acceso a {appName}.",
+    "requestToken": "Hola, quisiera solicitar un token de acceso para {appName}.",
+    "shareResult": "Te comparto mi resultado de {appName}."
   },
   "disclaimer": {
     "text": "⚕️ Imagen ilustrativa generada por IA. No es diagnóstica. El resultado es una aproximación artística y no representa con exactitud al bebé real.",

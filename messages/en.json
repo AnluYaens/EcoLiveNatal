@@ -97,7 +97,8 @@
     "newSession": "New session",
     "eco": "Eco",
     "result": "Result",
-    "split": "Compare"
+    "split": "Compare",
+    "downloadHint": "Download the image to get the side-by-side comparison in high resolution."
   },
   "errors": {
     "contentBlock": "The image could not be processed. Try a different photo.",
@@ -107,18 +108,24 @@
     "notUltrasound": "This image does not appear to be a 3D/4D ultrasound.",
     "generic": "An unexpected error occurred. Try again.",
     "dailyLimitExceeded": "You have reached your daily generation limit. Try again tomorrow.",
+    "badRequest": "Invalid request. Try again.",
+    "unauthorized": "Unauthorized access.",
+    "accountLocked": "Too many attempts. Try again in {minutes} minutes.",
     "retry": "Retry"
   },
-  "pinGate": {
+  "tokenGate": {
     "title": "Professional access",
     "subtitle": "Enter the token you received",
     "label": "ACCESS TOKEN",
     "placeholder": "Paste token here...",
     "example": "E.g.: 550e8400-e29b-41d4-a716-446655440000",
     "button": "Enter",
-    "error": "Incorrect token",
-    "accountLocked": "Too many attempts. Try again in {minutes} minutes.",
     "noCode": "Don't have a token? Request one here"
+  },
+  "whatsapp": {
+    "requestAccess": "Hello, I would like to request access to {appName}.",
+    "requestToken": "Hello, I would like to request an access token for {appName}.",
+    "shareResult": "I'm sharing my {appName} result."
   },
   "disclaimer": {
     "text": "⚕️ AI-generated illustrative image. Not diagnostic. The result is an artistic approximation and does not accurately represent the actual baby.",

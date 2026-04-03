@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import ErrorMessage from '@/components/ErrorMessage';
-import { SESSION_KEY, ACCOUNT_ID_KEY } from '@/components/PinGate';
+import { isApiErrorCode } from '@/lib/apiErrors';
+import { SESSION_KEY, ACCOUNT_ID_KEY } from '@/components/TokenGate';
 
 type GenerationMode = 'portrait' | 'realistic';
 type ScanType = '3d4d' | '2d';
@@ -30,6 +31,23 @@ interface ApiResponse {
   error?: string;
 }
 
+function getGenerationDefaults(
+  mode: GenerationMode,
+  anatomicalRegion: AnatomicalRegion,
+): { style: 'soft' | 'ultra'; creativity: number } {
+  if (mode === 'portrait' && anatomicalRegion === 'face') {
+    return {
+      style: 'ultra',
+      creativity: 15,
+    };
+  }
+
+  return {
+    style: 'ultra',
+    creativity: 50,
+  };
+}
+
 export default function GenerateStep({
   croppedBlob,
   onResult,
@@ -47,7 +65,7 @@ export default function GenerateStep({
   const [anatomicalRegion, setAnatomicalRegion] = useState<AnatomicalRegion>('face');
   const [clinicalNotes, setClinicalNotes] = useState('');
 
-  const portraitDisabled = anatomicalRegion !== 'face';
+  const portraitDisabled = anatomicalRegion !== 'face' && anatomicalRegion !== 'fullBody';
 
   useEffect(() => {
     const url = URL.createObjectURL(croppedBlob);
@@ -57,7 +75,7 @@ export default function GenerateStep({
 
   const handleRegionChange = (region: AnatomicalRegion) => {
     setAnatomicalRegion(region);
-    if (region !== 'face' && mode === 'portrait') {
+    if (region !== 'face' && region !== 'fullBody' && mode === 'portrait') {
       setMode('realistic');
     }
   };
@@ -92,10 +110,11 @@ export default function GenerateStep({
 
     try {
       const imageBlob = await compressBlob(croppedBlob);
+      const generationDefaults = getGenerationDefaults(mode, anatomicalRegion);
       const formData = new FormData();
       formData.append('image', imageBlob, 'crop.jpg');
-      formData.append('style', 'ultra');
-      formData.append('creativity', '50');
+      formData.append('style', generationDefaults.style);
+      formData.append('creativity', String(generationDefaults.creativity));
       formData.append('skinTone', skinTone);
       formData.append('mode', mode);
       formData.append('scanType', scanType);
@@ -113,7 +132,9 @@ export default function GenerateStep({
       const data = (await res.json()) as ApiResponse;
 
       if (!res.ok || !data.image) {
-        const errorKey = data.error === 'dailyLimitExceeded' ? 'dailyLimitExceeded' : 'generic';
+        const errorKey = data.error && isApiErrorCode(data.error)
+          ? data.error
+          : 'generic';
         setError(tErrors(errorKey));
         return;
       }

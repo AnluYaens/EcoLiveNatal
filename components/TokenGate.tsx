@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { APP_NAME } from '@/lib/constants';
+import { isApiErrorCode } from '@/lib/apiErrors';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 
 const SESSION_KEY = 'ecln_token';
 const ACCOUNT_ID_KEY = 'ecln_account_id';
 const DAILY_LIMIT_KEY = 'ecln_daily_limit';
+const VERIFY_TOKEN_TIMEOUT_MS = 15_000;
 
-interface PinGateProps {
+interface TokenGateProps {
   onVerified: (token: string) => void;
 }
 
@@ -19,32 +23,49 @@ interface VerifyResponse {
   minutes?: number;
 }
 
-export default function PinGate({ onVerified }: PinGateProps) {
-  const t = useTranslations('pinGate');
+export default function TokenGate({ onVerified }: TokenGateProps) {
+  const t = useTranslations('tokenGate');
+  const tErrors = useTranslations('errors');
+  const tWhatsApp = useTranslations('whatsapp');
   const [token, setToken] = useState('');
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
-  const [lockMessage, setLockMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '';
-  const whatsappUrl = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hola, quisiera solicitar un token de acceso para EcoLiveNatal')}`
-    : '';
+  const whatsappUrl = buildWhatsAppUrl(
+    whatsappNumber,
+    tWhatsApp('requestToken', { appName: APP_NAME }),
+  );
+
+  const resolveErrorMessage = (response: VerifyResponse): string => {
+    if (response.error === 'accountLocked' && typeof response.minutes === 'number') {
+      return tErrors('accountLocked', { minutes: response.minutes });
+    }
+
+    if (response.error && isApiErrorCode(response.error)) {
+      return tErrors(response.error);
+    }
+
+    return tErrors('generic');
+  };
 
   const handleSubmit = async () => {
-    const trimmed = token.trim();
+    const trimmed = token.trim().toLowerCase();
     if (!trimmed) return;
 
-    setError(false);
-    setLockMessage('');
+    setErrorMessage(null);
     setLoading(true);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), VERIFY_TOKEN_TIMEOUT_MS);
+
     try {
-      const res = await fetch('/api/verify-pin', {
+      const res = await fetch('/api/verify-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: trimmed }),
+        signal: controller.signal,
       });
 
       const data = (await res.json()) as VerifyResponse;
@@ -54,19 +75,20 @@ export default function PinGate({ onVerified }: PinGateProps) {
         sessionStorage.setItem(ACCOUNT_ID_KEY, data.accountId ?? '');
         sessionStorage.setItem(DAILY_LIMIT_KEY, String(data.dailyLimit ?? 0));
         onVerified(trimmed);
-      } else if (res.status === 429 && data.minutes) {
-        setLockMessage(t('accountLocked', { minutes: data.minutes }));
-        setError(true);
-        triggerShake();
       } else {
-        setError(true);
+        setErrorMessage(resolveErrorMessage(data));
         setToken('');
         triggerShake();
       }
-    } catch {
-      setError(true);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setErrorMessage(tErrors('timeout'));
+      } else {
+        setErrorMessage(tErrors('generic'));
+      }
       triggerShake();
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -120,14 +142,21 @@ export default function PinGate({ onVerified }: PinGateProps) {
               id="token-input"
               type="text"
               value={token}
-              onChange={(e) => { setToken(e.target.value); if (error) setError(false); }}
+              onChange={(e) => {
+                setToken(e.target.value);
+                if (errorMessage) {
+                  setErrorMessage(null);
+                }
+              }}
               onKeyDown={handleKeyDown}
               placeholder={t('placeholder')}
               autoFocus
               autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
               spellCheck={false}
               className={`w-full px-4 py-3.5 rounded-xl border-2 text-sm font-mono transition-all outline-none ${
-                error
+                errorMessage
                   ? 'border-red-300 bg-red-50 ring-2 ring-red-100'
                   : 'border-gray-200 bg-gray-50 focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/10'
               }`}
@@ -135,10 +164,10 @@ export default function PinGate({ onVerified }: PinGateProps) {
             <p className="text-[11px] text-text-secondary/50">{t('example')}</p>
           </div>
 
-          {error && (
+          {errorMessage && (
             <div className="w-full bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 -mt-2">
               <p className="text-red-600 text-sm font-medium text-center">
-                {lockMessage || t('error')}
+                {errorMessage}
               </p>
             </div>
           )}

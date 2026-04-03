@@ -5,13 +5,13 @@ import UploadStep from '@/components/UploadStep';
 import CropStep from '@/components/CropStep';
 import GenerateStep from '@/components/GenerateStep';
 import ResultStep from '@/components/ResultStep';
-import PinGate, { SESSION_KEY } from '@/components/PinGate';
+import TokenGate, { SESSION_KEY } from '@/components/TokenGate';
 import StepProgress from '@/components/StepProgress';
 
 type Step = 'upload' | 'crop' | 'generate' | 'result';
 
 export default function Home() {
-  const [pinVerified, setPinVerified] = useState<boolean>(() => {
+  const [tokenVerified, setTokenVerified] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return !!sessionStorage.getItem(SESSION_KEY);
     }
@@ -22,8 +22,8 @@ export default function Home() {
   const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
   const [resultBase64, setResultBase64] = useState<string | null>(null);
 
-  if (!pinVerified) {
-    return <PinGate onVerified={() => setPinVerified(true)} />;
+  if (!tokenVerified) {
+    return <TokenGate onVerified={() => setTokenVerified(true)} />;
   }
 
   return (
