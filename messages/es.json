@@ -6,7 +6,6 @@
   "uploadZone": {
     "title": "Sube tu ecografía",
     "subtitle": "Captura y conserva este momento único",
-    "hint": "Soporta JPG, PNG, HEIC · Máx 10MB",
     "dragHint": "Arrastra tu archivo aquí",
     "formatHint": "Soporta JPG, PNG, HEIC",
     "tip": "Para mejores resultados, asegúrate de que la imagen no tenga reflejos y esté bien iluminada",
@@ -53,16 +52,11 @@
     "title": "Generar retrato",
     "confirmTitle": "Confirma tu imagen",
     "confirmSubtitle": "Si la cara del bebé se ve clara, presiona generar",
-    "readyTitle": "Tu imagen está lista",
-    "readySubtitle": "Generaremos un retrato realista a partir de tu ecografía",
     "button": "Generar retrato",
     "creativity": "Creatividad",
     "creativityLow": "Fiel",
     "creativityMid": "Balanceado",
     "creativityHigh": "Creativo",
-    "loading1": "Analizando estructura...",
-    "loading2": "Renderizando piel...",
-    "loading3": "Finalizando retrato...",
     "loadingCleanScan": "Limpiando ecografía...",
     "loadingAnalyzeFace": "Analizando rostro y encuadre...",
     "loadingAnalyzeHeart": "Analizando estructuras cardíacas...",
@@ -70,7 +64,6 @@
     "loadingRenderPortrait": "Renderizando retrato...",
     "loadingRenderAnatomy": "Renderizando anatomía...",
     "loadingFinalize": "Finalizando imagen...",
-    "estimatedTime": "~20–40 segundos",
     "estimatedTimePortrait": "~20–40 segundos",
     "estimatedTimeAnatomy": "~30–60 segundos",
     "modeTitle": "Tipo de imagen",
@@ -146,15 +139,13 @@
   "result": {
     "title": "Retrato generado",
     "subtitle": "Tu retrato está listo",
-    "quickActions": "Acciones rápidas",
     "download": "Descargar",
     "whatsapp": "Compartir por WhatsApp",
     "regenerate": "Regenerar",
     "newSession": "Nueva sesión",
     "eco": "Eco",
     "result": "Resultado",
-    "split": "Comparar",
-    "downloadHint": "Descarga la imagen para obtener la comparativa lado a lado en alta resolución."
+    "downloadHint": "Descarga el resultado y la ecografía original en alta resolución."
   },
   "errors": {
     "contentBlock": "La imagen no pudo procesarse. Intenta con una foto diferente.",
@@ -186,14 +177,8 @@
   "disclaimer": {
     "text": "⚕️ Imagen ilustrativa generada por IA. No es diagnóstica. El resultado es una aproximación artística y no representa con exactitud al bebé real.",
     "footerText": "Imagen ilustrativa generada por IA",
-    "closeButton": "Cerrar"
-  },
-  "nav": {
-    "home": "Inicio",
-    "gallery": "Galería",
-    "upload": "Subir",
-    "history": "Historial",
-    "settings": "Ajustes"
+    "closeButton": "Cerrar",
+    "openInfo": "Abrir información"
   },
   "landing": {
     "nav": {
@@ -201,7 +186,8 @@
       "process": "Proceso",
       "results": "Resultados",
       "faq": "Preguntas",
-      "access": "Acceder"
+      "access": "Acceder",
+      "menu": "Abrir menú"
     },
     "hero": {
       "badge": "Tecnología de IA para ecografías",
@@ -232,19 +218,8 @@
       "step4Desc": "Descarga la imagen o compártela directamente por WhatsApp."
     },
     "results": {
-      "title": "Resultados",
-      "subtitle": "Comparativa directa antes/después. Sin retoque manual.",
       "disclaimer": "Imágenes ilustrativas generadas por IA. No diagnósticas.",
-      "placeholderNote": "Próximamente ejemplos reales",
-      "before": "Ecografía",
-      "after": "Retrato IA"
-    },
-    "pricing": {
-      "title": "Acceso por sesión",
-      "subtitle": "Sin suscripciones. Acceso controlado por invitación.",
-      "badge": "Acceso privado por invitación",
-      "badgeDesc": "Actualmente en acceso controlado. Solicita tu token de acceso personal por WhatsApp.",
-      "cta": "Solicitar acceso"
+      "placeholderNote": "Próximamente ejemplos reales"
     },
     "faq": {
       "title": "Preguntas frecuentes",
@@ -269,6 +244,7 @@
       "disclaimer": "Imágenes generadas por IA. No diagnósticas.",
       "process": "Proceso",
       "results": "Resultados",
+      "faq": "Preguntas",
       "privacy": "Privacidad",
       "terms": "Términos"
     }

@@ -6,7 +6,6 @@
   "uploadZone": {
     "title": "Upload your ultrasound",
     "subtitle": "Capture and preserve this unique moment",
-    "hint": "Supports JPG, PNG, HEIC · Max 10MB",
     "dragHint": "Drag your file here",
     "formatHint": "Supports JPG, PNG, HEIC",
     "tip": "For best results, make sure the image has no reflections and is well lit",
@@ -53,16 +52,11 @@
     "title": "Generate portrait",
     "confirmTitle": "Confirm your image",
     "confirmSubtitle": "If the baby's face is clear, press generate",
-    "readyTitle": "Your image is ready",
-    "readySubtitle": "We will generate a realistic portrait from your ultrasound",
     "button": "Generate portrait",
     "creativity": "Creativity",
     "creativityLow": "Faithful",
     "creativityMid": "Balanced",
     "creativityHigh": "Creative",
-    "loading1": "Analyzing structure...",
-    "loading2": "Rendering skin...",
-    "loading3": "Finalizing portrait...",
     "loadingCleanScan": "Cleaning ultrasound...",
     "loadingAnalyzeFace": "Analyzing face and framing...",
     "loadingAnalyzeHeart": "Analyzing cardiac structures...",
@@ -70,7 +64,6 @@
     "loadingRenderPortrait": "Rendering portrait...",
     "loadingRenderAnatomy": "Rendering anatomy...",
     "loadingFinalize": "Finalizing image...",
-    "estimatedTime": "~20–40 seconds",
     "estimatedTimePortrait": "~20–40 seconds",
     "estimatedTimeAnatomy": "~30–60 seconds",
     "modeTitle": "Image type",
@@ -146,15 +139,13 @@
   "result": {
     "title": "Portrait generated",
     "subtitle": "Your portrait is ready",
-    "quickActions": "Quick actions",
     "download": "Download",
     "whatsapp": "Share via WhatsApp",
     "regenerate": "Regenerate",
     "newSession": "New session",
     "eco": "Eco",
     "result": "Result",
-    "split": "Compare",
-    "downloadHint": "Download the image to get the side-by-side comparison in high resolution."
+    "downloadHint": "Download the result and the original ultrasound in high resolution."
   },
   "errors": {
     "contentBlock": "The image could not be processed. Try a different photo.",
@@ -186,14 +177,8 @@
   "disclaimer": {
     "text": "⚕️ AI-generated illustrative image. Not diagnostic. The result is an artistic approximation and does not accurately represent the actual baby.",
     "footerText": "AI-generated illustrative image",
-    "closeButton": "Close"
-  },
-  "nav": {
-    "home": "Home",
-    "gallery": "Galería",
-    "upload": "Upload",
-    "history": "History",
-    "settings": "Settings"
+    "closeButton": "Close",
+    "openInfo": "Open information"
   },
   "landing": {
     "nav": {
@@ -201,7 +186,8 @@
       "process": "Process",
       "results": "Results",
       "faq": "FAQ",
-      "access": "Access"
+      "access": "Access",
+      "menu": "Open menu"
     },
     "hero": {
       "badge": "AI technology for ultrasounds",
@@ -232,19 +218,8 @@
       "step4Desc": "Download the image or share it directly via WhatsApp."
     },
     "results": {
-      "title": "Results",
-      "subtitle": "Direct before/after comparison. No manual retouching.",
       "disclaimer": "AI-generated illustrative images. Not diagnostic.",
-      "placeholderNote": "Real examples coming soon",
-      "before": "Ultrasound",
-      "after": "AI Portrait"
-    },
-    "pricing": {
-      "title": "Per-session access",
-      "subtitle": "No subscriptions. Invitation-only controlled access.",
-      "badge": "Private invite-only access",
-      "badgeDesc": "Currently in controlled access. Request your personal access token via WhatsApp.",
-      "cta": "Request access"
+      "placeholderNote": "Real examples coming soon"
     },
     "faq": {
       "title": "Frequently asked questions",
@@ -269,6 +244,7 @@
       "disclaimer": "AI-generated images. Not diagnostic.",
       "process": "Process",
       "results": "Results",
+      "faq": "FAQ",
       "privacy": "Privacy",
       "terms": "Terms"
     }

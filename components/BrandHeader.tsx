@@ -7,6 +7,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 
 export default function BrandHeader() {
   const t = useTranslations('app');
+  const tDisclaimer = useTranslations('disclaimer');
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
   return (
@@ -35,7 +36,7 @@ export default function BrandHeader() {
       <button
         type="button"
         className="w-9 h-9 rounded-xl flex items-center justify-center text-text-secondary hover:bg-gray-100 transition-colors border border-gray-100"
-        aria-label="Info"
+        aria-label={tDisclaimer('openInfo')}
         onClick={() => setDisclaimerOpen(true)}
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

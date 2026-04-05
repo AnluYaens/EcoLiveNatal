@@ -81,7 +81,7 @@ export default function LandingNav() {
             type="button"
             className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-text-secondary border border-gray-200 hover:bg-gray-50 transition-colors"
             onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Menu"
+            aria-label={t('menu')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

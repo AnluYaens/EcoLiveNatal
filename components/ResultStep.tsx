@@ -20,7 +20,6 @@ export default function ResultStep({
   onNewSession,
 }: ResultStepProps) {
   const t = useTranslations('result');
-  const tSteps = useTranslations('steps');
   const tDisclaimer = useTranslations('disclaimer');
   const tWhatsApp = useTranslations('whatsapp');
   const title = stripDecorativeEmoji(t('title'));
@@ -28,13 +27,13 @@ export default function ResultStep({
   const shareLabel = stripDecorativeEmoji(t('whatsapp'));
   const regenerateLabel = stripDecorativeEmoji(t('regenerate'));
   const newSessionLabel = stripDecorativeEmoji(t('newSession'));
-  const beforeLabel = stripDecorativeEmoji(tSteps('crop'));
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'eco' | 'result'>('result');
 
   useEffect(() => {
     if (!sourceBlob) {
       setBeforeUrl(null);
+      setViewMode('result');
       return;
     }
     const url = URL.createObjectURL(sourceBlob);
@@ -42,7 +41,8 @@ export default function ResultStep({
     return () => URL.revokeObjectURL(url);
   }, [sourceBlob]);
 
-  const effectiveViewMode = beforeUrl ? viewMode : 'result';
+  const canCompare = beforeUrl !== null;
+  const showingEco = canCompare && viewMode === 'eco';
 
   const base64ToBlob = (): Blob => {
     const binary = atob(imageBase64);
@@ -62,104 +62,16 @@ export default function ResultStep({
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-  const loadImage = (src: string): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('Failed to load image for split download'));
-      img.src = src;
-    });
-
-  const drawCover = (
-    ctx: CanvasRenderingContext2D,
-    img: HTMLImageElement,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-  ) => {
-    const imageAspect = img.width / img.height;
-    const boxAspect = width / height;
-
-    let sx = 0;
-    let sy = 0;
-    let sw = img.width;
-    let sh = img.height;
-
-    if (imageAspect > boxAspect) {
-      sw = img.height * boxAspect;
-      sx = (img.width - sw) / 2;
-    } else {
-      sh = img.width / boxAspect;
-      sy = (img.height - sh) / 2;
-    }
-
-    ctx.drawImage(img, sx, sy, sw, sh, x, y, width, height);
-  };
-
-  const createSplitBlob = async (): Promise<Blob | null> => {
-    const resultSrc = `data:image/png;base64,${imageBase64}`;
-    let ecoUrl = beforeUrl;
-    let shouldRevokeEcoUrl = false;
-
-    if (!ecoUrl && sourceBlob) {
-      ecoUrl = URL.createObjectURL(sourceBlob);
-      shouldRevokeEcoUrl = true;
-    }
-
-    if (!ecoUrl) return null;
-
-    try {
-      const [ecoImage, resultImage] = await Promise.all([
-        loadImage(ecoUrl),
-        loadImage(resultSrc),
-      ]);
-
-      const canvas = document.createElement('canvas');
-      const padding = 16;
-      const gap = 8;
-      canvas.width = 2048;
-      canvas.height = 1024;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return null;
-
-      const panelWidth = (canvas.width - padding * 2 - gap) / 2;
-      const panelHeight = canvas.height - padding * 2;
-
-      ctx.fillStyle = '#FAFAF8';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      drawCover(ctx, ecoImage, padding, padding, panelWidth, panelHeight);
-      drawCover(
-        ctx,
-        resultImage,
-        padding + panelWidth + gap,
-        padding,
-        panelWidth,
-        panelHeight,
-      );
-
-      return await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((blob) => resolve(blob), 'image/png'),
-      );
-    } finally {
-      if (shouldRevokeEcoUrl && ecoUrl) {
-        URL.revokeObjectURL(ecoUrl);
-      }
-    }
-  };
-
-  const buildAllFiles = async (): Promise<File[]> => {
+  const buildShareFiles = (): File[] => {
     const files: File[] = [];
     const resultBlob = base64ToBlob();
-    files.push(new File([resultBlob], 'retrato-ecolivenatal-resultado.png', { type: 'image/png' }));
+    files.push(
+      new File([resultBlob], 'retrato-ecolivenatal-resultado.png', {
+        type: 'image/png',
+      }),
+    );
     if (sourceBlob) {
       files.push(new File([sourceBlob], 'retrato-ecolivenatal-eco.png', { type: 'image/png' }));
-    }
-    const splitBlob = await createSplitBlob();
-    if (splitBlob) {
-      files.push(new File([splitBlob], 'retrato-ecolivenatal-split.png', { type: 'image/png' }));
     }
     return files;
   };
@@ -167,7 +79,7 @@ export default function ResultStep({
   const isMobile = () => /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
   const handleDownload = async () => {
-    const files = await buildAllFiles();
+    const files = buildShareFiles();
 
     if (isMobile() && navigator.canShare?.({ files })) {
       try {
@@ -182,7 +94,7 @@ export default function ResultStep({
   };
 
   const handleWhatsApp = async () => {
-    const files = await buildAllFiles();
+    const files = buildShareFiles();
 
     if (isMobile() && navigator.canShare?.({ files })) {
       try {
@@ -209,47 +121,48 @@ export default function ResultStep({
 
       {/* Result image */}
       <div className="rounded-2xl overflow-hidden shadow-lg bg-white">
-        <div className="px-3 py-2.5">
-          <div className="grid grid-cols-2 gap-1.5 bg-gray-100 rounded-full p-1">
-            <button
-              type="button"
-              className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
-                effectiveViewMode === 'eco'
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-              onClick={() => setViewMode('eco')}
-              disabled={!beforeUrl}
-            >
-              {t('eco')}
-            </button>
-            <button
-              type="button"
-              className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
-                effectiveViewMode === 'result'
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
-              onClick={() => setViewMode('result')}
-            >
-              {t('result')}
-            </button>
+        {canCompare && (
+          <div className="px-3 py-2.5">
+            <div className="grid grid-cols-2 gap-1.5 bg-gray-100 rounded-full p-1">
+              <button
+                type="button"
+                className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
+                  showingEco
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+                onClick={() => setViewMode('eco')}
+              >
+                {t('eco')}
+              </button>
+              <button
+                type="button"
+                className={`rounded-full px-3 py-2 text-sm font-semibold transition-all ${
+                  !showingEco
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+                onClick={() => setViewMode('result')}
+              >
+                {t('result')}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="relative aspect-[3/4] w-full bg-white">
-          {effectiveViewMode === 'eco' && beforeUrl && (
+          {showingEco && beforeUrl && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={beforeUrl}
-                alt={beforeLabel}
+                alt={t('eco')}
                 className="h-full w-full object-contain"
               />
             </>
           )}
 
-          {effectiveViewMode === 'result' && (
+          {!showingEco && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -259,8 +172,6 @@ export default function ResultStep({
               />
             </>
           )}
-
-          {/* Split view was removed from UI */}
         </div>
       </div>
       

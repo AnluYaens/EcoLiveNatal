@@ -37,11 +37,39 @@ interface ApiResponse {
   error?: string;
 }
 
+const GENERATE_REQUEST_TIMEOUT_MS = 90_000;
+const MAX_GENERATE_IMAGE_DIM = 1280;
+
 const QUALITY_WARNING_COPY: Record<ImageQualityWarning, 'qualityDark' | 'qualityLowContrast' | 'qualitySubjectTooSmall'> = {
   darkCrop: 'qualityDark',
   lowContrast: 'qualityLowContrast',
   subjectTooSmall: 'qualitySubjectTooSmall',
 };
+
+async function compressBlobForGeneration(blob: Blob): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const { width, height } = bitmap;
+    const scale = Math.min(1, MAX_GENERATE_IMAGE_DIM / Math.max(width, height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      bitmap.close();
+      return blob;
+    }
+
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    return await new Promise<Blob>((resolve) =>
+      canvas.toBlob((compressed) => resolve(compressed ?? blob), 'image/jpeg', 0.88),
+    );
+  } catch {
+    return blob;
+  }
+}
 
 export default function GenerateStep({
   croppedBlob,
@@ -104,6 +132,7 @@ export default function GenerateStep({
   const handleRegionChange = (region: AnatomicalRegion) => {
     onAnatomicalRegionChange(region);
     setSelectedConditions([]);
+    setClinicalNotes('');
     setMode(getPreferredModeForRegion(region));
     setScanType(getDefaultScanTypeForRegion(region));
   };
@@ -128,36 +157,18 @@ export default function GenerateStep({
       ? tGenerate('estimatedTimePortrait')
       : tGenerate('estimatedTimeAnatomy');
 
-  const compressBlob = async (blob: Blob): Promise<Blob> => {
-    const MAX_DIM = 1280;
-    try {
-      const bitmap = await createImageBitmap(blob);
-      const { width, height } = bitmap;
-      const scale = Math.min(1, MAX_DIM / Math.max(width, height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(width * scale);
-      canvas.height = Math.round(height * scale);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { bitmap.close(); return blob; }
-      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      bitmap.close();
-      return await new Promise<Blob>((res) =>
-        canvas.toBlob((b) => res(b ?? blob), 'image/jpeg', 0.88)
-      );
-    } catch {
-      return blob;
-    }
-  };
-
   const handleGenerate = async () => {
     setError(null);
     setLoading(true);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      GENERATE_REQUEST_TIMEOUT_MS,
+    );
 
     try {
-      const imageBlob = await compressBlob(croppedBlob);
+      const imageBlob = await compressBlobForGeneration(croppedBlob);
       const generationDefaults = getGenerationDefaults(mode, anatomicalRegion);
       const formData = new FormData();
       formData.append('image', imageBlob, 'crop.jpg');

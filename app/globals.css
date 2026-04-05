@@ -16,39 +16,6 @@ body {
   color: #3d3535;
 }
 
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(27, 58, 92, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 24px 10px rgba(27, 58, 92, 0.15);
-  }
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.4s ease-out both;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-  border-radius: 9999px;
-}
-
-.pb-safe {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
-}
-
 @keyframes blob-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
   33%       { transform: translate(24px, -18px) scale(1.04); }
@@ -136,50 +103,3 @@ body {
   position: absolute;
 }
 
-@keyframes result-compare-reveal {
-  0%, 10% {
-    clip-path: inset(0 100% 0 0);
-  }
-  45%, 55% {
-    clip-path: inset(0 0 0 0);
-  }
-  90%, 100% {
-    clip-path: inset(0 0 0 100%);
-  }
-}
-
-@keyframes result-compare-divider {
-  0%, 10% {
-    left: 0%;
-  }
-  45%, 55% {
-    left: 100%;
-  }
-  90%, 100% {
-    left: 0%;
-  }
-}
-
-.result-compare-after {
-  animation: result-compare-reveal 6s ease-in-out infinite;
-}
-
-.result-compare-divider {
-  left: 0%;
-  animation: result-compare-divider 6s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .result-compare-after,
-  .result-compare-divider {
-    animation: none;
-  }
-
-  .result-compare-after {
-    clip-path: inset(0 0 0 0);
-  }
-
-  .result-compare-divider {
-    left: 100%;
-  }
-}

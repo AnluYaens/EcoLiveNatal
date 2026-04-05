@@ -33,7 +33,7 @@ export default function LandingFooter() {
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-text-secondary">
             <Link href={getLocalizedHash(locale, 'proceso')} className="hover:text-accent transition-colors">{t('process')}</Link>
             <Link href={getLocalizedHash(locale, 'resultados')} className="hover:text-accent transition-colors">{t('results')}</Link>
-            <Link href={faqPath} className="hover:text-accent transition-colors">FAQ</Link>
+            <Link href={faqPath} className="hover:text-accent transition-colors">{t('faq')}</Link>
             <span className="text-gray-200">|</span>
             <Link href={privacyPath} className="hover:text-accent transition-colors">{t('privacy')}</Link>
             <Link href={termsPath} className="hover:text-accent transition-colors">{t('terms')}</Link>

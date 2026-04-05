@@ -12,7 +12,7 @@ const DAILY_LIMIT_KEY = 'ecln_daily_limit';
 const VERIFY_TOKEN_TIMEOUT_MS = 15_000;
 
 interface TokenGateProps {
-  onVerified: (token: string) => void;
+  onVerified: () => void;
 }
 
 interface VerifyResponse {
@@ -74,7 +74,7 @@ export default function TokenGate({ onVerified }: TokenGateProps) {
         sessionStorage.setItem(SESSION_KEY, trimmed);
         sessionStorage.setItem(ACCOUNT_ID_KEY, data.accountId ?? '');
         sessionStorage.setItem(DAILY_LIMIT_KEY, String(data.dailyLimit ?? 0));
-        onVerified(trimmed);
+        onVerified();
       } else {
         setErrorMessage(resolveErrorMessage(data));
         setToken('');
