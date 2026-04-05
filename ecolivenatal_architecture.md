@@ -102,6 +102,7 @@ Session access is gated by `components/TokenGate.tsx`, which stores:
 These files are treated as seed or high-risk infra files. Only change them when the task requires it or when they block build/runtime correctness:
 
 - `lib/openaiClient.ts`
+- `lib/geminiClient.ts`
 - `lib/imagePreprocess.ts`
 - `lib/cropUtils.ts`
 - `middleware.ts`
@@ -134,5 +135,5 @@ Use Tailwind semantic tokens like `bg-background`, `bg-accent`, `text-text-prima
 
 ## Roadmap Docs
 
-- `docs/v1_5_plan.md`: approved near-term execution plan for strengthening the current prompt/preprocess pipeline before any dedicated v2 diffusion backend.
+- `docs/v1_5_plan.md`: current status snapshot plus remaining near-term work for strengthening the current prompt/preprocess pipeline before any dedicated v2 diffusion backend.
 - `docs/review_rubric.md`: internal review rubric for evaluating real output batches against geometry, overlay leakage, artifacts, and clinical plausibility.
