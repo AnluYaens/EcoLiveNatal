@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGenerationTelemetrySnapshot } from '@/lib/generationTelemetry';
+import { createApiErrorResponse } from '@/lib/apiErrors';
 
 function isAuthorized(req: NextRequest): boolean {
   const expectedToken = process.env.INTERNAL_METRICS_TOKEN;
@@ -13,14 +14,19 @@ function isAuthorized(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    return createApiErrorResponse('unauthorized', 401);
   }
 
-  const snapshot = await getGenerationTelemetrySnapshot();
+  try {
+    const snapshot = await getGenerationTelemetrySnapshot();
 
-  return NextResponse.json(snapshot, {
-    headers: {
-      'Cache-Control': 'no-store',
-    },
-  });
+    return NextResponse.json(snapshot, {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch {
+    console.error('Generation telemetry snapshot request failed');
+    return createApiErrorResponse('generic', 500);
+  }
 }

@@ -174,4 +174,14 @@ describe('/api/verify-token', () => {
     expect(res.status).toBe(429);
     await expect(res.json()).resolves.toMatchObject({ error: 'rateLimit' });
   });
+
+  it('returns 500 when account lookup fails unexpectedly', async () => {
+    const POST = await getHandler();
+    findByTokenMock.mockRejectedValue(new Error('redis down'));
+
+    const res = await POST(makeRequest({ token: '550e8400-e29b-41d4-a716-446655440000' }));
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toMatchObject({ error: 'generic' });
+  });
 });

@@ -20,6 +20,7 @@ export const GENERATION_TELEMETRY_MAX_EVENTS = 500;
 export const REDIS_NAMESPACE = 'ecln';
 export const REDIS_TOKEN_KEY_PREFIX = `${REDIS_NAMESPACE}:token`;
 export const REDIS_USAGE_KEY_PREFIX = `${REDIS_NAMESPACE}:usage`;
+export const REDIS_GENERATION_TELEMETRY_KEY = `${REDIS_NAMESPACE}:telemetry:generation`;
 export const ANNOTATION_PANEL_LEFT_RATIO = 0.25;
 export const ANNOTATION_PANEL_RIGHT_RATIO = 0.12;
 export const APP_NAME =

@@ -17,7 +17,14 @@ import type { UltrasoundAnalysis } from '@/lib/visionAnalysis';
 import { preprocessHeart, selectHeartProfile, type HeartRenderProfile, type HeartArtifactMap } from '@/lib/heartPreprocess';
 import { generateAnatomicalImage } from '@/lib/geminiClient';
 import { trackGenerationTelemetry, type TelemetryCacheOutcome, type TelemetryProvider, type TelemetryStatus } from '@/lib/generationTelemetry';
-import { GenerateSchema, type AnatomicalRegion, type GenerationMode, type ScanType } from '@/lib/validation';
+import {
+  GenerateSchema,
+  type AnatomicalRegion,
+  type GenerationMode,
+  type GenerationStyle,
+  type ScanType,
+  type SkinTone,
+} from '@/lib/validation';
 import {
   ANNOTATION_PANEL_LEFT_RATIO,
   ANNOTATION_PANEL_RIGHT_RATIO,
@@ -48,6 +55,24 @@ interface SessionImageCacheEntry {
   imageBase64: string;
   expiresAt: number;
   lastAccessAt: number;
+}
+
+interface PromptBuildInput {
+  style: GenerationStyle;
+  creativity: number;
+  skinTone: SkinTone;
+  mode: GenerationMode;
+  scanType: ScanType;
+  anatomicalRegion: AnatomicalRegion;
+  clinicalNotes: string;
+  analysis: UltrasoundAnalysis | null;
+  heartProfile: HeartRenderProfile | null;
+}
+
+interface BuiltPrompt {
+  prompt: string;
+  promptType: string;
+  analysisUsed: boolean;
 }
 
 const sessionImageCache = new Map<RequestFingerprint, SessionImageCacheEntry>();
@@ -198,47 +223,103 @@ function getPreprocessPath(
   return `${provider}:${anatomicalRegion}:${scanType}`;
 }
 
-function isConservativeHeartMode(
+function shouldUseGeminiProvider(
   anatomicalRegion: AnatomicalRegion,
-  analysis: UltrasoundAnalysis | null,
+  mode: GenerationMode,
 ): boolean {
-  if (anatomicalRegion !== 'heart' || !analysis?.organDetails) {
-    return false;
-  }
-
   return (
-    analysis.organDetails.anatomyConfidence !== 'high' ||
-    analysis.organDetails.overlayInterference === 'moderate' ||
-    analysis.organDetails.overlayInterference === 'heavy'
+    USE_GEMINI_FOR_ORGANS &&
+    anatomicalRegion !== 'face' &&
+    !(mode === 'portrait' && anatomicalRegion === 'fullBody')
   );
 }
 
-function shouldUseAnalysisForPrompt(
-  anatomicalRegion: AnatomicalRegion,
-  analysis: UltrasoundAnalysis | null,
-): analysis is UltrasoundAnalysis {
-  if (!analysis) {
-    return false;
+function getTelemetryProvider(useGeminiPath: boolean): TelemetryProvider {
+  if (process.env.MOCK_API === 'true') {
+    return 'mock';
   }
 
-  if (anatomicalRegion !== 'heart') {
-    return true;
+  return useGeminiPath ? 'gemini' : 'openai';
+}
+
+function buildOpenAiPrompt(input: PromptBuildInput): BuiltPrompt {
+  if (input.anatomicalRegion === 'heart' && input.heartProfile) {
+    return {
+      prompt:
+        input.heartProfile === 'strict'
+          ? buildHeartStrictPrompt(
+              input.scanType,
+              input.clinicalNotes,
+              input.analysis,
+            )
+          : buildHeartSalvagePrompt(
+              input.scanType,
+              input.clinicalNotes,
+              input.analysis,
+            ),
+      promptType: `heart-${input.heartProfile}`,
+      analysisUsed: input.analysis !== null,
+    };
   }
 
-  const organDetails = analysis.organDetails;
-  if (!organDetails) {
-    return false;
+  const analysisUsed = input.analysis !== null;
+  return {
+    prompt: analysisUsed
+      ? buildEnhancedPrompt(
+          input.style,
+          input.creativity,
+          input.skinTone,
+          input.mode,
+          input.scanType,
+          input.anatomicalRegion,
+          input.clinicalNotes,
+          input.analysis,
+        )
+      : buildPrompt(
+          input.style,
+          input.creativity,
+          input.skinTone,
+          input.mode,
+          input.scanType,
+          input.anatomicalRegion,
+          input.clinicalNotes,
+        ),
+    promptType: analysisUsed ? 'enhanced' : 'base',
+    analysisUsed,
+  };
+}
+
+function buildGeminiProviderPrompt(input: PromptBuildInput): BuiltPrompt {
+  if (input.anatomicalRegion === 'heart' && input.heartProfile) {
+    return {
+      prompt:
+        input.heartProfile === 'strict'
+          ? buildGeminiHeartStrictPrompt(
+              input.scanType,
+              input.clinicalNotes,
+              input.analysis,
+            )
+          : buildGeminiHeartSalvagePrompt(
+              input.scanType,
+              input.clinicalNotes,
+              input.analysis,
+            ),
+      promptType: `heart-${input.heartProfile}`,
+      analysisUsed: input.analysis !== null,
+    };
   }
 
-  const strongImageQuality =
-    analysis.imageQuality === 'excellent' || analysis.imageQuality === 'good';
-  const strongConfidence = organDetails.anatomyConfidence === 'high';
-  const lowOverlay =
-    organDetails.overlayInterference === 'none' ||
-    organDetails.overlayInterference === 'mild';
-  const enoughStructures = analysis.visibleStructures.length >= 4;
-
-  return strongImageQuality && strongConfidence && lowOverlay && enoughStructures;
+  const analysisUsed = input.analysis !== null;
+  return {
+    prompt: buildGeminiPrompt(
+      input.anatomicalRegion,
+      input.scanType,
+      input.clinicalNotes,
+      input.analysis,
+    ),
+    promptType: analysisUsed ? 'enhanced' : 'base',
+    analysisUsed,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -281,6 +362,9 @@ export async function POST(req: NextRequest) {
         analysisUsed: telemetryContext.analysisUsed,
         analysisImageQuality: telemetryContext.imageQuality,
         analysisAnatomyConfidence: telemetryContext.anatomyConfidence,
+        heartProfile: telemetryContext.heartProfile,
+        measurementRingDetected: telemetryContext.measurementRingDetected,
+        blackBandDetected: telemetryContext.blackBandDetected,
         durationMs: Date.now() - requestStartedAt,
       });
     } catch {
@@ -381,15 +465,10 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await imageFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 6. Preprocess — Gemini gets raw image (preserves annotations); OpenAI gets cleaned image
-    // Portrait mode for fullBody uses OpenAI (photorealistic baby portrait), not Gemini
-    const useGeminiPath = USE_GEMINI_FOR_ORGANS && anatomicalRegion !== 'face'
-      && !(mode === 'portrait' && anatomicalRegion === 'fullBody');
-    telemetryContext.provider = process.env.MOCK_API === 'true'
-      ? 'mock'
-      : useGeminiPath
-        ? 'gemini'
-        : 'openai';
+    // 6. Provider + preprocess selection.
+    // Portrait mode for fullBody stays on OpenAI; anatomical realistic flows can use Gemini.
+    const useGeminiPath = shouldUseGeminiProvider(anatomicalRegion, mode);
+    telemetryContext.provider = getTelemetryProvider(useGeminiPath);
     let processed: Buffer;
 
     console.log(`[generate] provider=${useGeminiPath ? 'GEMINI' : 'OPENAI'} region=${anatomicalRegion} mode=${mode} scanType=${scanType}`);
@@ -432,7 +511,15 @@ export async function POST(req: NextRequest) {
         console.log(`[generate] vision analysis starting for ${anatomicalRegion}...`);
         const analysisInput = anatomicalRegion === 'face' ? buffer : processed;
         analysis = await analyzeUltrasound(analysisInput, anatomicalRegion, scanType, sanitizedNotes);
-        console.log(`[generate] vision analysis OK — viewAngle=${analysis!.viewAngle} quality=${analysis!.imageQuality} structures=${analysis!.visibleStructures.length}`);
+        if (analysis) {
+          console.log(
+            `[generate] vision analysis OK — viewAngle=${analysis.viewAngle} quality=${analysis.imageQuality} structures=${analysis.visibleStructures.length}`,
+          );
+        } else {
+          console.warn(
+            `[generate] vision analysis returned no structured result for ${anatomicalRegion}, proceeding without`,
+          );
+        }
       } catch {
         console.warn(`[generate] vision analysis FAILED for ${anatomicalRegion}, proceeding without`);
         analysis = null;
@@ -441,17 +528,7 @@ export async function POST(req: NextRequest) {
       console.log('[generate] vision analysis DISABLED');
     }
 
-    // 7. Build prompt (enhanced if analysis available)
-    const analysisForPrompt = shouldUseAnalysisForPrompt(anatomicalRegion, analysis)
-      ? analysis
-      : null;
-    let promptType = analysisForPrompt ? 'enhanced' : 'base';
-    const conservativeHeartMode = isConservativeHeartMode(anatomicalRegion, analysis);
-    telemetryContext.analysisUsed = analysisForPrompt !== null;
-    telemetryContext.imageQuality = analysis?.imageQuality;
-    telemetryContext.anatomyConfidence = analysis?.organDetails?.anatomyConfidence;
-
-    // 7a. Heart profile selection (combines artifact map + vision analysis)
+    // 7. Heart profile selection (combines artifact map + vision analysis)
     if (anatomicalRegion === 'heart' && heartArtifactMap) {
       heartProfile = selectHeartProfile(heartArtifactMap, analysis);
       telemetryContext.heartProfile = heartProfile;
@@ -460,25 +537,28 @@ export async function POST(req: NextRequest) {
       console.log(`[generate] heart profile=${heartProfile}`);
     }
 
-    if (analysis && !analysisForPrompt && anatomicalRegion === 'heart') {
-      console.log(
-        `[generate] heart analysis not trusted for prompt anchoring — quality=${analysis.imageQuality} structures=${analysis.visibleStructures.length} confidence=${analysis.organDetails?.anatomyConfidence ?? 'unknown'} overlay=${analysis.organDetails?.overlayInterference ?? 'unknown'}`,
-      );
-    }
+    // 7a. Provider-specific prompt building
+    const promptBuildInput: PromptBuildInput = {
+      style,
+      creativity,
+      skinTone,
+      mode,
+      scanType,
+      anatomicalRegion,
+      clinicalNotes: sanitizedNotes,
+      analysis,
+      heartProfile,
+    };
+    const builtPrompt = useGeminiPath
+      ? buildGeminiProviderPrompt(promptBuildInput)
+      : buildOpenAiPrompt(promptBuildInput);
 
-    // 7b. Prompt building — heart uses profile-specific builders, others unchanged
-    let prompt: string;
-    if (anatomicalRegion === 'heart' && heartProfile) {
-      prompt = heartProfile === 'strict'
-        ? buildHeartStrictPrompt(scanType, sanitizedNotes, analysis)
-        : buildHeartSalvagePrompt(scanType, sanitizedNotes, analysis);
-      promptType = `heart-${heartProfile}`;
-    } else if (analysisForPrompt) {
-      prompt = buildEnhancedPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes, analysisForPrompt);
-    } else {
-      prompt = buildPrompt(style, creativity, skinTone, mode, scanType, anatomicalRegion, sanitizedNotes);
-    }
-    console.log(`[generate] prompt=${promptType} (${prompt.length} chars)`);
+    telemetryContext.analysisUsed = builtPrompt.analysisUsed;
+    telemetryContext.imageQuality = analysis?.imageQuality;
+    telemetryContext.anatomyConfidence = analysis?.organDetails?.anatomyConfidence;
+    console.log(
+      `[generate] prompt=${builtPrompt.promptType} (${builtPrompt.prompt.length} chars)`,
+    );
 
     let requestFingerprint: RequestFingerprint | null = null;
     if (ENABLE_SESSION_IMAGE_CACHE) {
@@ -525,40 +605,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ image: mockBase64 });
     }
 
-    // 8. Generate image — route organs to Gemini, faces to OpenAI
-    let geminiPrompt: string | null = null;
-    if (useGeminiPath) {
-      if (anatomicalRegion === 'heart' && heartProfile) {
-        geminiPrompt = heartProfile === 'strict'
-          ? buildGeminiHeartStrictPrompt(scanType, sanitizedNotes, analysis)
-          : buildGeminiHeartSalvagePrompt(scanType, sanitizedNotes, analysis);
-      } else {
-        geminiPrompt = buildGeminiPrompt(anatomicalRegion, scanType, sanitizedNotes, analysisForPrompt);
-      }
-    }
-
-    // Get input dimensions before sending to Gemini
+    // 8. Generate image with the selected provider prompt.
     let originalWidth = 0;
     let originalHeight = 0;
     if (useGeminiPath) {
       const inputMeta = await sharp(processed).metadata();
       originalWidth = inputMeta.width ?? 1024;
       originalHeight = inputMeta.height ?? 1024;
-      console.log(`[generate] calling GEMINI (${originalWidth}x${originalHeight}, prompt=${geminiPrompt!.length} chars)...`);
+      console.log(
+        `[generate] calling GEMINI (${originalWidth}x${originalHeight}, prompt=${builtPrompt.prompt.length} chars)...`,
+      );
     } else {
-      console.log(`[generate] calling OPENAI (model=gpt-image-1.5, prompt=${prompt.length} chars)...`);
+      console.log(
+        `[generate] calling OPENAI (model=gpt-image-1.5, prompt=${builtPrompt.prompt.length} chars)...`,
+      );
     }
 
     const genStart = Date.now();
     const rawBase64 = useGeminiPath
       ? await Promise.race([
-          generateAnatomicalImage(processed, geminiPrompt!, originalWidth, originalHeight),
+          generateAnatomicalImage(
+            processed,
+            builtPrompt.prompt,
+            originalWidth,
+            originalHeight,
+          ),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('timeout')), GEMINI_TIMEOUT_MS)
           ),
         ])
       : await Promise.race([
-          generatePortrait(processed, prompt),
+          generatePortrait(processed, builtPrompt.prompt),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('timeout')), OPENAI_TIMEOUT_MS)
           ),
@@ -591,11 +668,6 @@ export async function POST(req: NextRequest) {
       postProcessed = postProcessed
         .sharpen({ sigma: 0.8, m1: 0.5, m2: 0.3 })
         .modulate({ brightness: 1.02, saturation: 1.05 });
-    } else if (conservativeHeartMode) {
-      // Legacy conservative heart mode (fallback for non-heart-preprocessed paths)
-      postProcessed = postProcessed
-        .sharpen({ sigma: 0.7, m1: 0.35, m2: 0.2 })
-        .modulate({ brightness: 1.01, saturation: 1.02 });
     } else {
       // Realistic: stronger sharpening + warm saturation to enhance tissue texture and HDlive look
       postProcessed = postProcessed

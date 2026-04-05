@@ -54,4 +54,14 @@ describe('/api/internal/generation-telemetry', () => {
       recentEvents: [{ id: 'evt-1' }],
     });
   });
+
+  it('returns 500 when snapshot retrieval fails unexpectedly', async () => {
+    const GET = await getHandler();
+    getGenerationTelemetrySnapshotMock.mockRejectedValue(new Error('redis down'));
+
+    const res = await GET(makeRequest('secret-token'));
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toMatchObject({ error: 'generic' });
+  });
 });

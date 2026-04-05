@@ -1,14 +1,14 @@
-export type Style = "soft" | "ultra" | "cinematic";
-export type SkinTone = "normal" | "moreno";
-export type GenerationMode = "portrait" | "realistic";
-export type ScanType = "3d4d" | "2d";
-export type AnatomicalRegion =
-  | "face"
-  | "heart"
-  | "brain"
-  | "spine"
-  | "abdomen"
-  | "fullBody";
+import type {
+  AnatomicalRegion,
+  GenerationMode,
+  GenerationStyle,
+  ScanType,
+  SkinTone,
+} from "./validation";
+import type { UltrasoundAnalysis } from "./visionAnalysis";
+
+export type Style = GenerationStyle;
+export type { AnatomicalRegion, GenerationMode, ScanType, SkinTone };
 
 const styleModifiers: Record<Style, string> = {
   soft: "Style preference: soft natural lighting and gentle tones, while preserving the exact original geometry.",
@@ -54,6 +54,14 @@ function buildClinicalNotesBlock(clinicalNotes: string): string | null {
   return `[CLINICAL CONTEXT provided by the operator: ${trimmed}]
 
 Clinical context is supportive only. It must NEVER override the visible geometry, sidedness, view plane, pose, crop, or spatial layout in the image. If the operator notes conflict with the scan, follow the scan. Do not add textbook anatomy that is not visibly supported by the input.`;
+}
+
+function joinPromptSections(
+  ...sections: Array<string | null | undefined>
+): string {
+  return sections
+    .filter((section): section is string => Boolean(section))
+    .join("\n\n");
 }
 
 function buildPortraitPrompt(
@@ -224,9 +232,45 @@ export function buildGeminiPrompt(
         ? buildGeminiOrganAnchorBlock(anatomicalRegion, analysis)
         : null;
 
-  return [regionPrompt + scanNote, anchorBlock, clinicalBlock]
-    .filter(Boolean)
-    .join("\n\n");
+  return joinPromptSections(regionPrompt + scanNote, anchorBlock, clinicalBlock);
+}
+
+function buildRealisticPromptBase(
+  scanType: ScanType,
+  anatomicalRegion: AnatomicalRegion,
+  analysisBlock?: string | null,
+  analysis?: UltrasoundAnalysis | null,
+): string {
+  const scanDesc = scanTypeDescription(scanType);
+  const regionSubject = regionScanSubject[anatomicalRegion];
+  const regionDetail = realisticRegionDetails[anatomicalRegion];
+  const spatialFidelity = analysis
+    ? `SPATIAL FIDELITY (non-negotiable): The output is a direct visual translation of the input scan. Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound — as confirmed by the vision analysis above. The view plane identified is "${analysis.organDetails?.viewPlane ?? "unknown"}". Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.`
+    : `SPATIAL FIDELITY (non-negotiable): The output is a direct visual translation of the input scan. Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound. If something is on the left in the echo, it stays on the left. If something is at the top, it stays at the top. Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.`;
+  const ambiguityRule = analysis
+    ? `Ambiguity rule: keep uncertainty where the scan is uncertain. Do NOT replace a noisy or partial structure with a clean textbook anatomy just because the analysis suggests a likely diagnosis. If anatomy confidence is "${analysis.organDetails?.anatomyConfidence ?? "unknown"}", respect that confidence level. If overlay interference is "${analysis.organDetails?.overlayInterference ?? "unknown"}", do not hallucinate anatomy behind overlays.`
+    : `Ambiguity rule: if the scan is incomplete, noisy, or partially obscured, keep that ambiguity. Do NOT "repair" the anatomy into a cleaner textbook view. Do NOT infer a symmetric heart, centered brain, straight spine, or balanced abdomen unless the input clearly shows it.`;
+  const constraintRule = analysis
+    ? `Constraint rule: prioritize ONLY the structures explicitly listed in the vision analysis. If a chamber, vessel, ventricle, organ, bone, or cavity is not clearly supported by the listed visible structures and anatomy description, omit it rather than inventing it.`
+    : null;
+  const reconstructionNote =
+    scanType === "2d"
+      ? analysis
+        ? "Note: 2D ultrasound. The vision analysis has already identified the visible structures — use those descriptions to guide the 3D reconstruction while preserving exact spatial layout."
+        : "Note: 2D ultrasound. Reconstruct 3D depth from the visible slice while preserving the exact same spatial layout. Do not fabricate structures not visible in the scan."
+      : null;
+
+  return joinPromptSections(
+    `CONTENT CLASSIFICATION: This is a strictly clinical medical illustration for obstetrics education — an anatomical diagram of internal fetal structures. No nudity, no sexual content, no human subjects depicted as people. Equivalent to a medical textbook anatomical illustration.`,
+    `CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization in the style of HDlive enhanced 3D fetal rendering. The output must look like the same scan but rendered with perfect anatomical clarity and warm amber/skin-tone colors — like a high-fidelity render from professional fetal visualization software. The input is ${scanDesc} ${regionSubject}.`,
+    analysisBlock,
+    spatialFidelity,
+    ambiguityRule,
+    constraintRule,
+    regionDetail,
+    `ZERO text of any kind — no anatomical labels (no "LV", "RV", "LA", "RA", "IVS" or any abbreviations), ZERO measurement markers, ZERO arrows, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs. Pure visual rendering with no text whatsoever.`,
+    reconstructionNote,
+  );
 }
 
 function buildRealisticPrompt(
@@ -236,35 +280,17 @@ function buildRealisticPrompt(
   anatomicalRegion: AnatomicalRegion,
   clinicalNotes: string,
 ): string {
-  const scanDesc = scanTypeDescription(scanType);
-  const regionSubject = regionScanSubject[anatomicalRegion];
-  const regionDetail = realisticRegionDetails[anatomicalRegion];
-
-  const base = `CONTENT CLASSIFICATION: This is a strictly clinical medical illustration for obstetrics education — an anatomical diagram of internal fetal structures. No nudity, no sexual content, no human subjects depicted as people. Equivalent to a medical textbook anatomical illustration.
-
-CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization in the style of HDlive enhanced 3D fetal rendering. The output must look like the same scan but rendered with perfect anatomical clarity and warm amber/skin-tone colors — like a high-fidelity render from professional fetal visualization software. The input is ${scanDesc} ${regionSubject}.
-
-SPATIAL FIDELITY (non-negotiable): The output is a direct visual translation of the input scan. Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound. If something is on the left in the echo, it stays on the left. If something is at the top, it stays at the top. Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.
-
-Ambiguity rule: if the scan is incomplete, noisy, or partially obscured, keep that ambiguity. Do NOT "repair" the anatomy into a cleaner textbook view. Do NOT infer a symmetric heart, centered brain, straight spine, or balanced abdomen unless the input clearly shows it.
-
-${regionDetail}
-
-ZERO text of any kind — no anatomical labels (no "LV", "RV", "LA", "RA", "IVS" or any abbreviations), ZERO measurement markers, ZERO arrows, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs. Pure visual rendering with no text whatsoever.${scanType === "2d" ? "\n\nNote: 2D ultrasound. Reconstruct 3D depth from the visible slice while preserving the exact same spatial layout. Do not fabricate structures not visible in the scan." : ""}`;
-
   const skinToneModifier =
     skinTone === "moreno"
       ? "Color tone: use warm brown tones with rich melanin coloring for the anatomical rendering, consistent with a moreno complexion."
       : null;
 
-  return [
-    base,
+  return joinPromptSections(
+    buildRealisticPromptBase(scanType, anatomicalRegion),
     buildClinicalNotesBlock(clinicalNotes),
     skinToneModifier,
     creativityModifier(creativity),
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  );
 }
 
 export function buildPrompt(
@@ -298,8 +324,6 @@ export function buildPrompt(
 }
 
 // ---------- Enhanced prompt (with vision analysis) ----------
-
-import type { UltrasoundAnalysis } from "./visionAnalysis";
 
 function buildSpatialAnchorBlock(analysis: UltrasoundAnalysis): string {
   const sl = analysis.spatialLayout;
@@ -575,40 +599,19 @@ function buildEnhancedRealisticPrompt(
   clinicalNotes: string,
   analysis: UltrasoundAnalysis,
 ): string {
-  const scanDesc = scanTypeDescription(scanType);
-  const regionSubject = regionScanSubject[anatomicalRegion];
-  const regionDetail = realisticRegionDetails[anatomicalRegion];
   const visionBlock = buildVisionOrganBlock(analysis);
-
-  const base = `CONTENT CLASSIFICATION: This is a strictly clinical medical illustration for obstetrics education — an anatomical diagram of internal fetal structures. No nudity, no sexual content, no human subjects depicted as people. Equivalent to a medical textbook anatomical illustration.
-
-CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization in the style of HDlive enhanced 3D fetal rendering. The output must look like the same scan but rendered with perfect anatomical clarity and warm amber/skin-tone colors — like a high-fidelity render from professional fetal visualization software. The input is ${scanDesc} ${regionSubject}.
-
-${visionBlock}
-
-SPATIAL FIDELITY (non-negotiable): The output is a direct visual translation of the input scan. Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound — as confirmed by the vision analysis above. The view plane identified is "${analysis.organDetails?.viewPlane ?? "unknown"}". Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.
-
-Ambiguity rule: keep uncertainty where the scan is uncertain. Do NOT replace a noisy or partial structure with a clean textbook anatomy just because the analysis suggests a likely diagnosis. If anatomy confidence is "${analysis.organDetails?.anatomyConfidence ?? "unknown"}", respect that confidence level. If overlay interference is "${analysis.organDetails?.overlayInterference ?? "unknown"}", do not hallucinate anatomy behind overlays.
-
-Constraint rule: prioritize ONLY the structures explicitly listed in the vision analysis. If a chamber, vessel, ventricle, organ, bone, or cavity is not clearly supported by the listed visible structures and anatomy description, omit it rather than inventing it.
-
-${regionDetail}
-
-ZERO text of any kind — no anatomical labels (no "LV", "RV", "LA", "RA", "IVS" or any abbreviations), ZERO measurement markers, ZERO arrows, ZERO watermarks, ZERO medical equipment, ZERO annotation overlays, ZERO crosshairs. Pure visual rendering with no text whatsoever.${scanType === "2d" ? "\n\nNote: 2D ultrasound. The vision analysis has already identified the visible structures — use those descriptions to guide the 3D reconstruction while preserving exact spatial layout." : ""}`;
 
   const skinToneModifier =
     skinTone === "moreno"
       ? "Color tone: use warm brown tones with rich melanin coloring for the anatomical rendering, consistent with a moreno complexion."
       : null;
 
-  return [
-    base,
+  return joinPromptSections(
+    buildRealisticPromptBase(scanType, anatomicalRegion, visionBlock, analysis),
     buildClinicalNotesBlock(clinicalNotes),
     skinToneModifier,
     creativityModifier(creativity),
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  );
 }
 
 export function buildEnhancedPrompt(
@@ -724,6 +727,72 @@ Where the scan shows amorphous dark/bright blobs rather than clear anatomy, pres
 
 All tissue must be SOLID and OPAQUE, not translucent or gelatinous. Dark open spaces remain as cavities. Rose-pink tissue with subtle texture. Warm HDlive 3D directional lighting with controlled depth and very restrained specular highlights. NO TEXT, no labels, no annotations.`;
 
+type HeartProfile = "strict" | "salvage";
+
+function buildHeartOpenAiPrompt(
+  profile: HeartProfile,
+  scanType: ScanType,
+  clinicalNotes: string,
+  analysisBlock: string | null,
+  promptBody: string,
+): string {
+  const scanDesc = scanTypeDescription(scanType);
+  const profileHeader =
+    profile === "strict"
+      ? "PROFILE: STRICT — this scan has been verified as clean with high anatomical confidence. Render all confirmed structures with full HDlive tissue detail."
+      : "PROFILE: SALVAGE — this scan has artifacts or ambiguous anatomy. Apply a very restrained HDlive translation only.";
+  const contextBlock =
+    profile === "strict"
+      ? `CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization. The input is ${scanDesc} showing an amorphous biological tissue cross-section. This is a direct texture translation of the input scan, not a reconstruction or new illustration.`
+      : `CONTEXT: The input is ${scanDesc} showing an amorphous biological tissue cross-section. Apply a restrained local texture translation preserving the exact ROI silhouette.`;
+  const spatialFidelity =
+    profile === "strict"
+      ? `SPATIAL FIDELITY (non-negotiable): Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound. Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.`
+      : `SPATIAL FIDELITY (non-negotiable): Every structure must be in the EXACT same position as in the ultrasound. Do NOT recompose, recenter, or generate a generic diagram.`;
+  const scanNote =
+    scanType === "2d"
+      ? profile === "strict"
+        ? "Note: 2D ultrasound. Reconstruct 3D depth from the visible slice while preserving the exact same spatial layout."
+        : "Note: 2D ultrasound — preserve the cross-sectional geometry exactly."
+      : null;
+
+  return joinPromptSections(
+    profileHeader,
+    `CONTENT CLASSIFICATION: This is a strictly clinical medical illustration for obstetrics education — an anatomical diagram of internal fetal structures. No nudity, no sexual content, no human subjects depicted as people.`,
+    contextBlock,
+    analysisBlock,
+    spatialFidelity,
+    promptBody,
+    scanNote,
+    buildClinicalNotesBlock(clinicalNotes),
+  );
+}
+
+function buildHeartGeminiPrompt(
+  profile: HeartProfile,
+  scanType: ScanType,
+  clinicalNotes: string,
+  anchorBlock: string | null,
+  promptBody: string,
+): string {
+  const profileHeader =
+    profile === "strict"
+      ? "PROFILE: STRICT — clean scan, high anatomical confidence."
+      : "PROFILE: SALVAGE — artifacts or ambiguous anatomy detected. Apply very restrained HDlive translation.";
+  const scanNote =
+    scanType === "2d"
+      ? profile === "strict"
+        ? " This is a 2D ultrasound — reconstruct 3D depth from the visible cross-section."
+        : " This is a 2D ultrasound — preserve the cross-sectional geometry exactly."
+      : "";
+
+  return joinPromptSections(
+    `${profileHeader}\n\n${promptBody}${scanNote}`,
+    anchorBlock,
+    buildClinicalNotesBlock(clinicalNotes),
+  );
+}
+
 /**
  * Heart strict prompt for OpenAI path.
  * Used when preprocessing is clean AND vision analysis is confident.
@@ -733,26 +802,17 @@ export function buildHeartStrictPrompt(
   clinicalNotes: string,
   analysis: UltrasoundAnalysis | null,
 ): string {
-  const scanDesc = scanTypeDescription(scanType);
-  const regionDetail = realisticRegionDetails.heart;
-
   const visionBlock = analysis ? buildVisionOrganBlock(analysis) : "";
 
-  const base = `PROFILE: STRICT — this scan has been verified as clean with high anatomical confidence. Render all confirmed structures with full HDlive tissue detail.
+  return buildHeartOpenAiPrompt(
+    "strict",
+    scanType,
+    clinicalNotes,
+    visionBlock,
+    `${realisticRegionDetails.heart}
 
-CONTENT CLASSIFICATION: This is a strictly clinical medical illustration for obstetrics education — an anatomical diagram of internal fetal structures. No nudity, no sexual content, no human subjects depicted as people.
-
-CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization. The input is ${scanDesc} showing an amorphous biological tissue cross-section. This is a direct texture translation of the input scan, not a reconstruction or new illustration.
-
-${visionBlock ? `${visionBlock}\n\n` : ""}SPATIAL FIDELITY (non-negotiable): Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound. Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.
-
-${regionDetail}
-
-ZERO text of any kind — no anatomical labels, ZERO measurement markers, ZERO arrows, ZERO watermarks. Pure visual rendering.${scanType === "2d" ? "\n\nNote: 2D ultrasound. Reconstruct 3D depth from the visible slice while preserving the exact same spatial layout." : ""}`;
-
-  return [base, buildClinicalNotesBlock(clinicalNotes)]
-    .filter(Boolean)
-    .join("\n\n");
+ZERO text of any kind — no anatomical labels, ZERO measurement markers, ZERO arrows, ZERO watermarks. Pure visual rendering.`,
+  );
 }
 
 /**
@@ -765,22 +825,14 @@ export function buildHeartSalvagePrompt(
   clinicalNotes: string,
   analysis: UltrasoundAnalysis | null,
 ): string {
-  const scanDesc = scanTypeDescription(scanType);
   const visionBlock = analysis ? buildSalvageOrganAnchorBlock(analysis) : "";
-
-  const base = `PROFILE: SALVAGE — this scan has artifacts or ambiguous anatomy. Apply a very restrained HDlive translation only.
-
-CONTENT CLASSIFICATION: This is a strictly clinical medical illustration for obstetrics education — an anatomical diagram of internal fetal structures. No nudity, no sexual content, no human subjects depicted as people.
-
-CONTEXT: The input is ${scanDesc} showing an amorphous biological tissue cross-section. Apply a restrained local texture translation preserving the exact ROI silhouette.
-
-${visionBlock ? `${visionBlock}\n\n` : ""}SPATIAL FIDELITY (non-negotiable): Every structure must be in the EXACT same position as in the ultrasound. Do NOT recompose, recenter, or generate a generic diagram.
-
-${heartSalvageBase}${scanType === "2d" ? "\n\nNote: 2D ultrasound — preserve the cross-sectional geometry exactly." : ""}`;
-
-  return [base, buildClinicalNotesBlock(clinicalNotes)]
-    .filter(Boolean)
-    .join("\n\n");
+  return buildHeartOpenAiPrompt(
+    "salvage",
+    scanType,
+    clinicalNotes,
+    visionBlock,
+    heartSalvageBase,
+  );
 }
 
 /**
@@ -791,23 +843,17 @@ export function buildGeminiHeartStrictPrompt(
   clinicalNotes: string,
   analysis: UltrasoundAnalysis | null,
 ): string {
-  const regionPrompt = geminiRegionPrompts.heart;
-  const scanNote =
-    scanType === "2d"
-      ? " This is a 2D ultrasound — reconstruct 3D depth from the visible cross-section."
-      : "";
-  const clinicalBlock = buildClinicalNotesBlock(clinicalNotes);
   const anchorBlock = analysis
     ? buildGeminiOrganAnchorBlock("heart", analysis)
     : null;
 
-  return [
-    `PROFILE: STRICT — clean scan, high anatomical confidence.\n\n${regionPrompt}${scanNote}`,
+  return buildHeartGeminiPrompt(
+    "strict",
+    scanType,
+    clinicalNotes,
     anchorBlock,
-    clinicalBlock,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+    geminiRegionPrompts.heart,
+  );
 }
 
 /**
@@ -819,20 +865,15 @@ export function buildGeminiHeartSalvagePrompt(
   clinicalNotes: string,
   analysis: UltrasoundAnalysis | null,
 ): string {
-  const scanNote =
-    scanType === "2d"
-      ? " This is a 2D ultrasound — preserve the cross-sectional geometry exactly."
-      : "";
-  const clinicalBlock = buildClinicalNotesBlock(clinicalNotes);
   const anchorBlock = analysis
     ? buildSalvageOrganAnchorBlock(analysis)
     : null;
 
-  return [
-    `PROFILE: SALVAGE — artifacts or ambiguous anatomy detected. Apply very restrained HDlive translation.\n\n${heartSalvageBase}${scanNote}`,
+  return buildHeartGeminiPrompt(
+    "salvage",
+    scanType,
+    clinicalNotes,
     anchorBlock,
-    clinicalBlock,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+    heartSalvageBase,
+  );
 }

@@ -287,6 +287,15 @@ describe('/api/generate usage handling', () => {
     expect(buildGeminiHeartSalvagePrompt).toHaveBeenCalled();
     // The generic buildGeminiPrompt should NOT have been called for heart
     expect(buildGeminiPromptMock).not.toHaveBeenCalled();
+    expect(trackGenerationTelemetryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'success',
+        provider: 'gemini',
+        heartProfile: 'salvage',
+        measurementRingDetected: false,
+        blackBandDetected: false,
+      }),
+    );
   });
 
   it('heart with clean artifacts and no analysis defaults to salvage', async () => {

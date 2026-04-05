@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { GENERATION_TELEMETRY_MAX_EVENTS } from './constants';
+import {
+  GENERATION_TELEMETRY_MAX_EVENTS,
+  REDIS_GENERATION_TELEMETRY_KEY,
+} from './constants';
+import { getRedisClient, isRedisConfigured } from './redis';
 import type { AnatomicalRegion, GenerationMode, ScanType } from './validation';
 
 export type TelemetryStatus =
@@ -63,11 +67,6 @@ interface TelemetryFileShape {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const TELEMETRY_PATH = path.join(DATA_DIR, 'generation-telemetry.json');
-const REDIS_KEY = 'ecln:telemetry:generation';
-
-function isRedisConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL);
-}
 
 function readTelemetryFile(): TelemetryFileShape {
   if (!fs.existsSync(TELEMETRY_PATH)) {
@@ -106,23 +105,23 @@ async function appendTelemetryFile(event: GenerationTelemetryEvent): Promise<voi
   return writeQueue;
 }
 
-async function getRedis() {
-  const { Redis } = await import('@upstash/redis');
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
-}
-
 async function appendTelemetryRedis(event: GenerationTelemetryEvent): Promise<void> {
-  const redis = await getRedis();
-  await redis.lpush(REDIS_KEY, JSON.stringify(event));
-  await redis.ltrim(REDIS_KEY, 0, GENERATION_TELEMETRY_MAX_EVENTS - 1);
+  const redis = getRedisClient();
+  await redis.lpush(REDIS_GENERATION_TELEMETRY_KEY, JSON.stringify(event));
+  await redis.ltrim(
+    REDIS_GENERATION_TELEMETRY_KEY,
+    0,
+    GENERATION_TELEMETRY_MAX_EVENTS - 1,
+  );
 }
 
 async function readTelemetryRedis(): Promise<GenerationTelemetryEvent[]> {
-  const redis = await getRedis();
-  const raw = await redis.lrange<string>(REDIS_KEY, 0, GENERATION_TELEMETRY_MAX_EVENTS - 1);
+  const redis = getRedisClient();
+  const raw = await redis.lrange<string>(
+    REDIS_GENERATION_TELEMETRY_KEY,
+    0,
+    GENERATION_TELEMETRY_MAX_EVENTS - 1,
+  );
   return raw
     .map((entry) => {
       try {

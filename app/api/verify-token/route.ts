@@ -66,15 +66,24 @@ export async function POST(req: NextRequest) {
     return createApiErrorResponse('unauthorized', 403);
   }
 
-  // 5. Look up account by token
-  const account = await accountStore.findByToken(parsed.data.token);
-  if (!account) {
-    recordFailedAttempt(ip);
-    await delay(FAIL_DELAY_MS);
-    return createApiErrorResponse('unauthorized', 403);
-  }
+  try {
+    // 5. Look up account by token
+    const account = await accountStore.findByToken(parsed.data.token);
+    if (!account) {
+      recordFailedAttempt(ip);
+      await delay(FAIL_DELAY_MS);
+      return createApiErrorResponse('unauthorized', 403);
+    }
 
-  // 6. Success — clear brute-force attempts
-  clearAttempts(ip);
-  return NextResponse.json({ ok: true, accountId: account.id, dailyLimit: account.dailyLimit });
+    // 6. Success — clear brute-force attempts
+    clearAttempts(ip);
+    return NextResponse.json({
+      ok: true,
+      accountId: account.id,
+      dailyLimit: account.dailyLimit,
+    });
+  } catch {
+    console.error('Verify token API request failed');
+    return createApiErrorResponse('generic', 500);
+  }
 }
