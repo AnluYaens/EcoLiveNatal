@@ -1,6 +1,5 @@
-import LandingNav from '@/components/landing/LandingNav';
 import FaqSection from '@/components/landing/FaqSection';
-import LandingFooter from '@/components/landing/LandingFooter';
+import PublicPageShell from '@/components/landing/PublicPageShell';
 
 export default function FaqPage() {
   return (
@@ -22,13 +21,9 @@ export default function FaqPage() {
         <div className="fc fc-6" />
       </div>
 
-      <div className="relative z-10 flex flex-col min-h-screen">
-        <LandingNav />
-        <main className="flex-1">
-          <FaqSection />
-        </main>
-        <LandingFooter />
-      </div>
+      <PublicPageShell>
+        <FaqSection />
+      </PublicPageShell>
     </div>
   );
 }

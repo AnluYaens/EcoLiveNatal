@@ -1,16 +1,14 @@
-import LandingNav from '@/components/landing/LandingNav';
 import HeroSection from '@/components/landing/HeroSection';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import ProcessSection from '@/components/landing/ProcessSection';
 import ResultsGallery from '@/components/landing/ResultsGallery';
 import CtaSection from '@/components/landing/CtaSection';
-import LandingFooter from '@/components/landing/LandingFooter';
+import PublicPageShell from '@/components/landing/PublicPageShell';
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
-      <LandingNav />
-      <main>
+      <PublicPageShell>
         {/* Blob + floating circles zone — covers Hero + Features */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
@@ -35,8 +33,7 @@ export default function LandingPage() {
         <ProcessSection />
         <ResultsGallery />
         <CtaSection />
-      </main>
-      <LandingFooter />
+      </PublicPageShell>
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import createMiddleware from 'next-intl/middleware';
+import { defaultLocale, locales } from '@/i18n/config';
 
 export default createMiddleware({
-  locales: ['es', 'en'],
-  defaultLocale: 'es',
+  locales,
+  defaultLocale,
   localePrefix: 'as-needed', // "/" serves Spanish directly, "/en" for English
 });
 

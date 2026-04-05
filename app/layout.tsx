@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={plusJakartaSans.variable}>
+    <html className={plusJakartaSans.variable}>
       <body className="bg-background text-text-primary font-sans min-h-screen flex flex-col">
         {children}
         <Analytics />
