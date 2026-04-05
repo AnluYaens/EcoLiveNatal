@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { AnatomicalRegion, ScanType } from './promptBuilder';
+import type { AnatomicalRegion, ScanType } from './validation';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -50,6 +50,9 @@ const OrganDetailsSchema = z.object({
   viewPlane: z.string(),
   visibleAnatomyDescription: z.string(),
   measurements: z.string().nullable(),
+  anatomyConfidence: z.enum(['high', 'medium', 'low']),
+  overlayInterference: z.enum(['none', 'mild', 'moderate', 'heavy']),
+  sidedness: z.string().nullable(),
   cardiacDetails: CardiacDetailsSchema.optional(),
 });
 
@@ -134,6 +137,9 @@ Return a JSON object:
     "viewPlane": "<exact cardiac view: 'four-chamber', '3-vessel', '3-vessel-trachea', 'LVOT', 'RVOT', 'aortic arch', 'ductal arch', 'short axis', or description>",
     "visibleAnatomyDescription": "<detailed paragraph describing all visible cardiac structures, their spatial relationships, wall thicknesses, chamber sizes — ignore any text overlays>",
     "measurements": null,
+    "anatomyConfidence": <"high" | "medium" | "low">,
+    "overlayInterference": <"none" | "mild" | "moderate" | "heavy">,
+    "sidedness": "<brief sidedness/layout note such as 'left-sided chambers occupy left half of frame', 'spine remains posterior-right', or null>",
     "cardiacDetails": {
       "visibleChambers": [<list of chamber abbreviations visible: "LV", "RV", "LA", "RA">],
       "septalIntegrity": "<describe interventricular and interatrial septum — e.g. 'IVS appears intact throughout', 'IVS not clearly visible', 'possible perimembranous defect'>",
@@ -157,7 +163,10 @@ Return a JSON object:
   "organDetails": {
     "viewPlane": "<exact brain view: 'transthalamic axial', 'transcerebellar axial', 'mid-sagittal', 'parasagittal', 'coronal anterior', 'coronal posterior', or description>",
     "visibleAnatomyDescription": "<detailed paragraph describing visible intracranial structures and spatial relationships>",
-    "measurements": "<any visible measurements, or null>"
+    "measurements": "<any visible measurements, or null>",
+    "anatomyConfidence": <"high" | "medium" | "low">,
+    "overlayInterference": <"none" | "mild" | "moderate" | "heavy">,
+    "sidedness": "<brief sidedness/layout note or null>"
   },
   "overallDescription": "<2-3 sentence summary>"
 }`,
@@ -173,7 +182,10 @@ Return a JSON object:
   "organDetails": {
     "viewPlane": "<exact spine view: 'sagittal full', 'sagittal lumbar', 'coronal', 'axial single vertebra', or description>",
     "visibleAnatomyDescription": "<detailed paragraph describing visible spinal structures>",
-    "measurements": "<any visible measurements, or null>"
+    "measurements": "<any visible measurements, or null>",
+    "anatomyConfidence": <"high" | "medium" | "low">,
+    "overlayInterference": <"none" | "mild" | "moderate" | "heavy">,
+    "sidedness": "<brief sidedness/layout note or null>"
   },
   "overallDescription": "<2-3 sentence summary>"
 }`,
@@ -189,7 +201,10 @@ Return a JSON object:
   "organDetails": {
     "viewPlane": "<exact abdominal view: 'AC plane', 'renal axial', 'sagittal', or description>",
     "visibleAnatomyDescription": "<detailed paragraph describing visible abdominal structures>",
-    "measurements": "<any visible measurements, or null>"
+    "measurements": "<any visible measurements, or null>",
+    "anatomyConfidence": <"high" | "medium" | "low">,
+    "overlayInterference": <"none" | "mild" | "moderate" | "heavy">,
+    "sidedness": "<brief sidedness/layout note or null>"
   },
   "overallDescription": "<2-3 sentence summary>"
 }`,
@@ -205,7 +220,10 @@ Return a JSON object:
   "organDetails": {
     "viewPlane": "<description of the body orientation and view>",
     "visibleAnatomyDescription": "<detailed paragraph describing the fetal position, limb positions, and all visible structures>",
-    "measurements": "<any visible measurements, or null>"
+    "measurements": "<any visible measurements, or null>",
+    "anatomyConfidence": <"high" | "medium" | "low">,
+    "overlayInterference": <"none" | "mild" | "moderate" | "heavy">,
+    "sidedness": "<brief sidedness/layout note or null>"
   },
   "overallDescription": "<2-3 sentence summary>"
 }`,
@@ -221,6 +239,7 @@ CRITICAL RULES:
 - Be specific about shapes, angles, and spatial relationships.
 - If you cannot determine something, use null or "unknown".
 - Your analysis will be used to generate a realistic reconstruction, so accuracy is paramount — a wrong description is worse than saying "unclear".
+- For organ scans, explicitly rate how confident you are in the visible anatomy and how much overlay/annotation interference remains in the image.
 - Respond ONLY with valid JSON. No markdown, no code blocks, no extra text.`;
 
 // ---------- Main function ----------

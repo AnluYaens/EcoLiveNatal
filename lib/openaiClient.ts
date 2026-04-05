@@ -78,6 +78,7 @@ export async function generatePortrait(
     return await runEdit(prompt, 'attempt_1_primary');
   } catch (err: unknown) {
     if (isModerationBlockedError(err)) {
+      console.log('[openai] moderation block on attempt 1, retrying with safe suffix...');
       return runEdit(
         `${prompt}\n\n${MODERATION_RETRY_SUFFIX}`,
         'attempt_2_safe_retry',
