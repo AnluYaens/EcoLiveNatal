@@ -1,43 +1,46 @@
 import { describe, it, expect } from 'vitest';
-import { buildEnhancedPrompt, buildPrompt } from '../promptBuilder';
+import {
+  buildEnhancedPrompt,
+  buildGeminiPrompt,
+  buildPrompt,
+  buildHeartStrictPrompt,
+  buildHeartSalvagePrompt,
+  buildGeminiHeartStrictPrompt,
+  buildGeminiHeartSalvagePrompt,
+} from '../promptBuilder';
 
 describe('buildPrompt', () => {
   describe('base prompt', () => {
     it('always includes the base ultrasound-to-portrait instruction', () => {
       const result = buildPrompt('soft', 50);
-      expect(result).toContain('3D/4D obstetric ultrasound');
-      expect(result).toContain('ultra-realistic newborn portrait');
+      expect(result).toContain('texture swap, not a new portrait');
+      expect(result).toContain('photorealistic newborn skin');
     });
 
     it('always includes the likeness requirement', () => {
       const result = buildPrompt('ultra', 50);
-      expect(result).toContain('Likeness requirement');
+      expect(result).toContain("Preserve THIS baby's specific facial features exactly as they appear");
     });
 
     it('always includes the safety framing and coverage requirement', () => {
       const result = buildPrompt('cinematic', 50);
-      expect(result).toContain('Safety framing rule');
-      expect(result).toContain('Coverage rule');
+      expect(result).toContain('Hard constraints: treat the crop as a fixed frame.');
+      expect(result).toContain('Family-safe close-up.');
     });
 
     it('keeps portrait prompts focused on a specific baby instead of a medical illustration disclaimer', () => {
       const result = buildPrompt('ultra', 50);
-      expect(result).toContain('THIS SPECIFIC baby');
-      expect(result).toContain('same baby');
+      expect(result).toContain("THIS baby's specific facial features");
       expect(result).not.toContain('No human subjects depicted as people');
     });
 
-    it('avoids instructing a dark studio background and preserves visible hands around the face', () => {
+    it('preserves visible hands around the face without introducing dark-background instructions', () => {
       const result = buildPrompt('ultra', 50);
-      expect(result).toContain("you MUST preserve it and render it as the baby's real hand/arm");
-      expect(result).toContain('not a dark studio backdrop');
+      expect(result).toContain('If a hand or arm is visible near the face, keep it at the same position.');
+      expect(result).not.toContain('dark studio backdrop');
       expect(result).not.toContain('neutral or dark background');
-      expect(result).toContain('strict silhouette and contour map');
-      expect(result).toContain('family-safe close-up portrait focused on the baby\'s face and any clearly visible hand only');
-      expect(result).toContain('It must NEVER cover or cross the forehead, eyes, cheeks, nose, lips, or chin');
-      expect(result).not.toContain('No nudity of any kind');
-      expect(result).toContain('Do NOT beautify or idealize the face');
-      expect(result).toContain('Use swaddle minimally');
+      expect(result).toContain('Do NOT symmetrize, beautify, or idealize facial proportions.');
+      expect(result).toContain('Family-safe close-up.');
     });
   });
 
@@ -153,16 +156,11 @@ describe('buildPrompt', () => {
       );
 
       expect(result).toContain('VISION ANALYSIS');
-      expect(result).toContain('same baby');
+      expect(result).toContain("Reproduce THIS baby's specific features exactly as analyzed above.");
       expect(result).not.toContain('No human subjects depicted as people');
-      expect(result).toContain('rather than replacing it with blanket or background');
-      expect(result).toContain('rather than a dark studio backdrop');
-      expect(result).toContain('strict silhouette and contour map');
-      expect(result).toContain('family-safe close-up portrait focused on the baby\'s face and any clearly visible hand only');
-      expect(result).toContain('It must NEVER cover or cross the forehead, eyes, cheeks, nose, lips, or chin');
-      expect(result).not.toContain('No nudity of any kind');
-      expect(result).toContain('Do NOT beautify or idealize the face');
-      expect(result).toContain('Use swaddle minimally');
+      expect(result).toContain('Treat the crop as a fixed frame');
+      expect(result).toContain('Family-safe close-up.');
+      expect(result).toContain('Realistic newborn skin');
     });
 
     it('includes spatial anchor data with coordinates when spatialLayout is present', () => {
@@ -251,7 +249,259 @@ describe('buildPrompt', () => {
 
       expect(result).not.toContain('SPATIAL ANCHOR DATA');
       expect(result).toContain('VISION ANALYSIS');
-      expect(result).toContain('SPATIAL AND POSE REQUIREMENT');
+      expect(result).toContain('Strictly maintain the anatomical geometry of the original input image.');
     });
+  });
+
+  describe('enhanced realistic prompt', () => {
+    it('uses organ confidence and overlay interference as hard constraints', () => {
+      const result = buildEnhancedPrompt(
+        'ultra',
+        45,
+        'normal',
+        'realistic',
+        '2d',
+        'heart',
+        'Known conditions: 4-chamber view.',
+        {
+          estimatedGestationalWeeks: 24,
+          viewAngle: 'axial',
+          imageQuality: 'fair',
+          visibleStructures: ['left ventricle', 'right ventricle', 'interventricular septum'],
+          organDetails: {
+            viewPlane: 'four-chamber',
+            visibleAnatomyDescription: 'Four-chamber cardiac slice with both ventricles and part of the septum visible.',
+            measurements: null,
+            anatomyConfidence: 'medium',
+            overlayInterference: 'moderate',
+            sidedness: 'spine remains posterior-right',
+            cardiacDetails: {
+              visibleChambers: ['LV', 'RV'],
+              septalIntegrity: 'IVS partially visible',
+              valvesVisible: ['mitral', 'tricuspid'],
+              greatVessels: 'not visible in this plane',
+              pericardiumVisible: true,
+              structuralAnomalyFlag: null,
+            },
+          },
+          overallDescription: 'Axial cardiac view with partial overlay interference.',
+        },
+      );
+
+      expect(result).toContain('Anatomy confidence: medium');
+      expect(result).toContain('Overlay interference: moderate');
+      expect(result).toContain('If anatomy confidence is "medium"');
+      expect(result).toContain('If overlay interference is "moderate"');
+      expect(result).toContain('prioritize ONLY the structures explicitly listed');
+      expect(result).toContain('spine remains posterior-right');
+    });
+  });
+
+  describe('gemini organ prompt', () => {
+    it('uses heart analysis to block textbook thoracic reconstructions', () => {
+      const result = buildGeminiPrompt(
+        'heart',
+        '2d',
+        '',
+        {
+          estimatedGestationalWeeks: 24,
+          viewAngle: 'axial',
+          imageQuality: 'fair',
+          visibleStructures: ['left ventricle', 'right ventricle', 'interventricular septum'],
+          organDetails: {
+            viewPlane: 'four-chamber',
+            visibleAnatomyDescription:
+              'Four-chamber cardiac slice with both ventricles and part of the septum visible.',
+            measurements: null,
+            anatomyConfidence: 'medium',
+            overlayInterference: 'moderate',
+            sidedness: 'spine remains posterior-right',
+            cardiacDetails: {
+              visibleChambers: ['LV', 'RV'],
+              septalIntegrity: 'IVS partially visible',
+              valvesVisible: ['mitral', 'tricuspid'],
+              greatVessels: 'not visible in this plane',
+              pericardiumVisible: false,
+              structuralAnomalyFlag: null,
+            },
+          },
+          overallDescription: 'Axial cardiac view with partial overlay interference.',
+        },
+      );
+
+      expect(result).toContain('Do NOT turn this into a generic textbook thoracic cross-section.');
+      expect(result).toContain('Do NOT add lungs, ribs, chest wall, spine, pericardium');
+      expect(result).toContain('VISION-ANCHORED CONSTRAINTS');
+      expect(result).toContain('Anatomy confidence: medium');
+      expect(result).toContain('Overlay interference: moderate');
+      expect(result).toContain('Cardiac chambers confirmed: LV, RV');
+      expect(result).toContain('Conservative mode: because confidence is medium and overlay interference is moderate');
+      expect(result).toContain('Do NOT present this as a dissected specimen');
+      expect(result).toContain('do NOT render a clean dissected-heart appearance');
+      expect(result).toContain('preserve those blobs as localized soft tissue masses');
+      expect(result).toContain('dotted or faint circular measurement guide');
+      expect(result).toContain('Never interpret it as septum, vessel wall, or tissue plane');
+      expect(result).toContain('Do NOT create concentric rings, donut-like chambers');
+    });
+  });
+});
+
+// ---------- Heart-specific prompt builders (strict / salvage) ----------
+
+const heartAnalysis = {
+  estimatedGestationalWeeks: 24,
+  viewAngle: 'axial' as const,
+  imageQuality: 'good' as const,
+  visibleStructures: ['left ventricle', 'right ventricle', 'interventricular septum', 'mitral valve', 'tricuspid valve'],
+  organDetails: {
+    viewPlane: 'four-chamber',
+    visibleAnatomyDescription: 'Four-chamber cardiac slice with both ventricles.',
+    measurements: null,
+    anatomyConfidence: 'high' as const,
+    overlayInterference: 'none' as const,
+    sidedness: 'spine remains posterior-right',
+    cardiacDetails: {
+      visibleChambers: ['LV', 'RV'],
+      septalIntegrity: 'IVS intact',
+      valvesVisible: ['mitral', 'tricuspid'],
+      greatVessels: 'aorta visible',
+      pericardiumVisible: true,
+      structuralAnomalyFlag: null,
+    },
+  },
+  overallDescription: 'Clean four-chamber cardiac view.',
+};
+
+describe('buildHeartStrictPrompt', () => {
+  it('contains HDlive tissue instructions', () => {
+    const result = buildHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).toContain('HDlive');
+    expect(result).toContain('texture swap, not a new illustration');
+  });
+
+  it('includes cardiac details when analysis is available', () => {
+    const result = buildHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).toContain('CARDIAC STRUCTURE DETAILS');
+    expect(result).toContain('Visible chambers: LV, RV');
+    expect(result).toContain('Septal integrity: IVS intact');
+  });
+
+  it('includes STRICT profile header', () => {
+    const result = buildHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).toContain('PROFILE: STRICT');
+  });
+
+  it('does NOT contain conservative mode lines', () => {
+    const result = buildHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).not.toContain('Conservative mode');
+  });
+
+  it('does NOT contain anonymous tissue language', () => {
+    const result = buildHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).not.toContain('anonymous tissue masses');
+  });
+
+  it('includes clinical notes when provided', () => {
+    const result = buildHeartStrictPrompt('2d', 'suspected VSD', heartAnalysis);
+    expect(result).toContain('CLINICAL CONTEXT');
+    expect(result).toContain('suspected VSD');
+  });
+
+  it('works without analysis', () => {
+    const result = buildHeartStrictPrompt('2d', '', null);
+    expect(result).toContain('PROFILE: STRICT');
+    expect(result).not.toContain('CARDIAC STRUCTURE DETAILS');
+  });
+});
+
+describe('buildHeartSalvagePrompt', () => {
+  it('contains SALVAGE profile header', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('PROFILE: SALVAGE');
+  });
+
+  it('does NOT contain named chambers (LV, RV, LA, RA)', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).not.toContain('Visible chambers: LV');
+    expect(result).not.toContain('CARDIAC STRUCTURE DETAILS');
+  });
+
+  it('contains anonymous tissue mass language', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('anonymous tissue masses');
+  });
+
+  it('contains measurement ring artifact awareness', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('measurement rings are non-anatomical');
+  });
+
+  it('contains black band artifact awareness', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('black bands or gaps are removed background');
+  });
+
+  it('prohibits concentric rings and donut chambers', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('concentric rings, donut-like chambers');
+  });
+
+  it('prohibits anatomy completion', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('Do NOT complete anatomy');
+  });
+
+  it('prohibits dissected specimen appearance', () => {
+    const result = buildHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('Do NOT present this as a dissected specimen');
+  });
+
+  it('works without analysis', () => {
+    const result = buildHeartSalvagePrompt('2d', '', null);
+    expect(result).toContain('PROFILE: SALVAGE');
+    expect(result).toContain('anonymous tissue masses');
+  });
+});
+
+describe('buildGeminiHeartStrictPrompt', () => {
+  it('contains STRICT profile header and Gemini base heart prompt', () => {
+    const result = buildGeminiHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).toContain('PROFILE: STRICT');
+    expect(result).toContain('GE Voluson HDlive Silhouette style');
+  });
+
+  it('includes full anchor block with cardiac details', () => {
+    const result = buildGeminiHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).toContain('VISION-ANCHORED CONSTRAINTS');
+    expect(result).toContain('Cardiac chambers confirmed: LV, RV');
+  });
+
+  it('does NOT contain anonymous tissue language', () => {
+    const result = buildGeminiHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).not.toContain('anonymous tissue masses');
+  });
+});
+
+describe('buildGeminiHeartSalvagePrompt', () => {
+  it('contains SALVAGE profile header', () => {
+    const result = buildGeminiHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('PROFILE: SALVAGE');
+  });
+
+  it('does NOT include cardiac chamber names in anchor block', () => {
+    const result = buildGeminiHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).not.toContain('Cardiac chambers confirmed');
+  });
+
+  it('contains anonymous tissue and artifact restrictions', () => {
+    const result = buildGeminiHeartSalvagePrompt('2d', '', heartAnalysis);
+    expect(result).toContain('anonymous tissue masses');
+    expect(result).toContain('measurement rings are non-anatomical');
+    expect(result).toContain('concentric rings, donut-like chambers');
+  });
+
+  it('works without analysis', () => {
+    const result = buildGeminiHeartSalvagePrompt('2d', '', null);
+    expect(result).toContain('PROFILE: SALVAGE');
   });
 });
