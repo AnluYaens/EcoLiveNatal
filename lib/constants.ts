@@ -15,6 +15,7 @@ export const BRUTE_FORCE_LOCKOUT_MS = 15 * 60 * 1000; // 15 min
 
 // Usage tracking
 export const DAILY_LIMIT_PRUNE_DAYS = 30;
+export const GENERATION_TELEMETRY_MAX_EVENTS = 500;
 export const APP_NAME =
   process.env.NEXT_PUBLIC_APP_TITLE ?? 'EcoLiveNatal';
 export const CLINIC_NAME =

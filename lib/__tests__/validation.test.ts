@@ -64,5 +64,16 @@ describe('GenerateSchema', () => {
       const result = GenerateSchema.safeParse({ style: 'soft', skinTone: 'normal' });
       expect(result.success).toBe(false);
     });
+
+    it('rejects portrait mode for organ regions', () => {
+      const result = GenerateSchema.safeParse({
+        style: 'soft',
+        creativity: 50,
+        skinTone: 'normal',
+        mode: 'portrait',
+        anatomicalRegion: 'heart',
+      });
+      expect(result.success).toBe(false);
+    });
   });
 });
