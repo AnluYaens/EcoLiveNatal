@@ -1,11 +1,19 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
 import { APP_NAME } from '@/lib/constants';
+import { defaultLocale, isValidLocale } from '@/i18n/config';
+import { getLocalizedHash, getLocalizedPath } from '@/lib/localePaths';
 
 export default function LandingFooter() {
   const t = useTranslations('landing.footer');
+  const localeValue = useLocale();
+  const locale = isValidLocale(localeValue) ? localeValue : defaultLocale;
   const year = new Date().getFullYear();
+  const faqPath = getLocalizedPath(locale, '/faq');
+  const privacyPath = getLocalizedPath(locale, '/privacidad');
+  const termsPath = getLocalizedPath(locale, '/terminos');
 
   return (
     <footer className="bg-white border-t-2 border-accent/15 py-10">
@@ -23,12 +31,12 @@ export default function LandingFooter() {
 
           {/* Links */}
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-text-secondary">
-            <a href="/#proceso" className="hover:text-accent transition-colors">{t('process')}</a>
-            <a href="/#resultados" className="hover:text-accent transition-colors">{t('results')}</a>
-            <a href="/faq" className="hover:text-accent transition-colors">FAQ</a>
+            <Link href={getLocalizedHash(locale, 'proceso')} className="hover:text-accent transition-colors">{t('process')}</Link>
+            <Link href={getLocalizedHash(locale, 'resultados')} className="hover:text-accent transition-colors">{t('results')}</Link>
+            <Link href={faqPath} className="hover:text-accent transition-colors">FAQ</Link>
             <span className="text-gray-200">|</span>
-            <a href="/privacidad" className="hover:text-accent transition-colors">{t('privacy')}</a>
-            <a href="/terminos" className="hover:text-accent transition-colors">{t('terms')}</a>
+            <Link href={privacyPath} className="hover:text-accent transition-colors">{t('privacy')}</Link>
+            <Link href={termsPath} className="hover:text-accent transition-colors">{t('terms')}</Link>
           </nav>
         </div>
 

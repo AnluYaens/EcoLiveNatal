@@ -7,6 +7,7 @@ import GenerateStep from '@/components/GenerateStep';
 import ResultStep from '@/components/ResultStep';
 import TokenGate, { SESSION_KEY } from '@/components/TokenGate';
 import StepProgress from '@/components/StepProgress';
+import type { AnatomicalRegion } from '@/lib/validation';
 
 type Step = 'upload' | 'crop' | 'generate' | 'result';
 
@@ -21,6 +22,7 @@ export default function Home() {
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
   const [resultBase64, setResultBase64] = useState<string | null>(null);
+  const [anatomicalRegion, setAnatomicalRegion] = useState<AnatomicalRegion>('face');
 
   if (!tokenVerified) {
     return <TokenGate onVerified={() => setTokenVerified(true)} />;
@@ -41,6 +43,8 @@ export default function Home() {
         {step === 'crop' && originalFile && (
           <CropStep
             file={originalFile}
+            anatomicalRegion={anatomicalRegion}
+            onAnatomicalRegionChange={setAnatomicalRegion}
             onCropped={(blob) => {
               setCroppedBlob(blob);
               setStep('generate');
@@ -52,6 +56,8 @@ export default function Home() {
         {step === 'generate' && croppedBlob && (
           <GenerateStep
             croppedBlob={croppedBlob}
+            anatomicalRegion={anatomicalRegion}
+            onAnatomicalRegionChange={setAnatomicalRegion}
             onResult={(base64) => {
               setResultBase64(base64);
               setStep('result');
@@ -69,6 +75,7 @@ export default function Home() {
               setOriginalFile(null);
               setCroppedBlob(null);
               setResultBase64(null);
+              setAnatomicalRegion('face');
               setStep('upload');
             }}
           />

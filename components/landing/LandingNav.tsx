@@ -3,14 +3,16 @@
 import { useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { APP_NAME, CLINIC_LOGO, CLINIC_NAME } from '@/lib/constants';
+import { defaultLocale, isValidLocale } from '@/i18n/config';
+import { getLocalizedHash, getLocalizedPath } from '@/lib/localePaths';
 
 /** Smooth-scroll to an element by ID, or navigate home first if on a different page. */
-function useSectionNav() {
+function useSectionNav(homePath: string, locale: string) {
   const pathname = usePathname();
   const router = useRouter();
-  const isHome = pathname === '/' || pathname === '/es' || pathname === '/en';
+  const isHome = pathname === homePath || (homePath === '/' && pathname === `/${locale}`);
 
   return useCallback(
     (sectionId: string) => {
@@ -21,16 +23,21 @@ function useSectionNav() {
           return;
         }
       }
-      router.push(`/#${sectionId}`);
+      router.push(getLocalizedHash(isValidLocale(locale) ? locale : defaultLocale, sectionId));
     },
-    [isHome, router],
+    [isHome, locale, router],
   );
 }
 
 export default function LandingNav() {
   const t = useTranslations('landing.nav');
+  const localeValue = useLocale();
+  const locale = isValidLocale(localeValue) ? localeValue : defaultLocale;
   const [menuOpen, setMenuOpen] = useState(false);
-  const scrollTo = useSectionNav();
+  const homePath = getLocalizedPath(locale, '/');
+  const faqPath = getLocalizedPath(locale, '/faq');
+  const appPath = getLocalizedPath(locale, '/app');
+  const scrollTo = useSectionNav(homePath, locale);
 
   const linkClass = 'hover:text-accent transition-colors cursor-pointer';
 
@@ -38,7 +45,7 @@ export default function LandingNav() {
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100/80">
       <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
         {/* Logo — links to home */}
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href={homePath} className="flex items-center gap-2.5">
           {CLINIC_LOGO ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={CLINIC_LOGO} alt={CLINIC_NAME || APP_NAME} className="h-8 object-contain" />
@@ -56,16 +63,16 @@ export default function LandingNav() {
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
-          <Link href="/" className={linkClass}>{t('home')}</Link>
+          <Link href={homePath} className={linkClass}>{t('home')}</Link>
           <button type="button" onClick={() => scrollTo('proceso')} className={linkClass}>{t('process')}</button>
           <button type="button" onClick={() => scrollTo('resultados')} className={linkClass}>{t('results')}</button>
-          <Link href="/faq" className={linkClass}>{t('faq')}</Link>
+          <Link href={faqPath} className={linkClass}>{t('faq')}</Link>
         </div>
 
         {/* CTA + hamburger */}
         <div className="flex items-center gap-3">
           <Link
-            href="/app"
+            href={appPath}
             className="bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors shadow-sm"
           >
             {t('access')}
@@ -91,10 +98,10 @@ export default function LandingNav() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-gray-100 px-5 py-4 flex flex-col gap-4 text-sm font-medium text-text-secondary bg-white">
-          <Link href="/" onClick={() => setMenuOpen(false)} className={linkClass}>{t('home')}</Link>
+          <Link href={homePath} onClick={() => setMenuOpen(false)} className={linkClass}>{t('home')}</Link>
           <button type="button" onClick={() => { scrollTo('proceso'); setMenuOpen(false); }} className={`${linkClass} text-left`}>{t('process')}</button>
           <button type="button" onClick={() => { scrollTo('resultados'); setMenuOpen(false); }} className={`${linkClass} text-left`}>{t('results')}</button>
-          <Link href="/faq" onClick={() => setMenuOpen(false)} className={linkClass}>{t('faq')}</Link>
+          <Link href={faqPath} onClick={() => setMenuOpen(false)} className={linkClass}>{t('faq')}</Link>
         </div>
       )}
     </nav>

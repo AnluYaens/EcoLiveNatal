@@ -1,15 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { APP_NAME } from '@/lib/constants';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { defaultLocale, isValidLocale } from '@/i18n/config';
+import { getLocalizedPath } from '@/lib/localePaths';
 
 const WA_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '';
 
 export default function HeroSection() {
   const t = useTranslations('landing.hero');
   const tWhatsApp = useTranslations('whatsapp');
+  const localeValue = useLocale();
+  const locale = isValidLocale(localeValue) ? localeValue : defaultLocale;
   const waHref = buildWhatsAppUrl(
     WA_NUMBER,
     tWhatsApp('requestAccess', { appName: APP_NAME }),
@@ -53,7 +57,7 @@ export default function HeroSection() {
             {t('ctaPrimary')}
           </a>
           <Link
-            href="/app"
+            href={getLocalizedPath(locale, '/app')}
             className="w-full sm:w-auto border-2 border-accent text-accent hover:bg-accent-light font-semibold px-8 py-4 rounded-full transition-all text-sm text-center"
           >
             {t('ctaSecondary')}

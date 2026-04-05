@@ -5,15 +5,27 @@ import Cropper from "react-easy-crop";
 import type { Area, Point } from "react-easy-crop";
 import { useTranslations } from "next-intl";
 import { getCroppedImg } from "@/lib/cropUtils";
+import AnatomicalRegionSelector from "@/components/AnatomicalRegionSelector";
+import { getRegionProfile } from "@/lib/generationProfiles";
+import type { AnatomicalRegion } from "@/lib/validation";
 
 interface CropStepProps {
   file: File;
+  anatomicalRegion: AnatomicalRegion;
+  onAnatomicalRegionChange: (region: AnatomicalRegion) => void;
   onCropped: (blob: Blob) => void;
   onBack: () => void;
 }
 
-export default function CropStep({ file, onCropped, onBack }: CropStepProps) {
+export default function CropStep({
+  file,
+  anatomicalRegion,
+  onAnatomicalRegionChange,
+  onCropped,
+  onBack,
+}: CropStepProps) {
   const t = useTranslations("crop");
+  const regionProfile = getRegionProfile(anatomicalRegion);
   const [imageSrc, setImageSrc] = useState("");
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -67,10 +79,15 @@ export default function CropStep({ file, onCropped, onBack }: CropStepProps) {
         </h2>
       </div>
 
-      {/* Tip badge */}
-      <div className="bg-accent-light/40 rounded-2xl px-4 py-3">
-        <p className="text-sm font-medium text-text-primary">{t("tip")}</p>
-        <p className="text-xs text-text-secondary mt-0.5">{t("subTip")}</p>
+      <AnatomicalRegionSelector
+        selectedRegion={anatomicalRegion}
+        onSelect={onAnatomicalRegionChange}
+      />
+
+      <div className="bg-accent-light/40 rounded-2xl px-4 py-3 space-y-1">
+        <p className="text-sm font-medium text-text-primary">{t(regionProfile.cropGuidance.tipKey)}</p>
+        <p className="text-xs text-text-secondary">{t(regionProfile.cropGuidance.subTipKey)}</p>
+        <p className="text-[11px] text-text-secondary/80">{t("subTip")}</p>
       </div>
 
       {/* Crop canvas */}

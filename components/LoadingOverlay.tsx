@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useState, useEffect } from 'react';
 
 interface LoadingOverlayProps {
   visible: boolean;
+  messages: string[];
+  estimatedTimeLabel: string;
 }
 
-export default function LoadingOverlay({ visible }: LoadingOverlayProps) {
-  const t = useTranslations('generate');
+export default function LoadingOverlay({
+  visible,
+  messages,
+  estimatedTimeLabel,
+}: LoadingOverlayProps) {
   const [messageIndex, setMessageIndex] = useState(0);
-
-  const loadingMessages = useMemo(
-    () => [t('loading1'), t('loading2'), t('loading3')],
-    [t]
-  );
 
   useEffect(() => {
     if (!visible) {
@@ -22,10 +21,10 @@ export default function LoadingOverlay({ visible }: LoadingOverlayProps) {
       return;
     }
     const interval = setInterval(() => {
-      setMessageIndex((i) => (i + 1) % loadingMessages.length);
+      setMessageIndex((i) => (i + 1) % messages.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, [visible, loadingMessages.length]);
+  }, [visible, messages.length]);
 
   if (!visible) return null;
 
@@ -45,9 +44,9 @@ export default function LoadingOverlay({ visible }: LoadingOverlayProps) {
           key={messageIndex}
           className="text-lg font-semibold text-text-primary text-center"
         >
-          {loadingMessages[messageIndex]}
+          {messages[messageIndex]}
         </p>
-        <p className="text-sm text-text-secondary/70">{t('estimatedTime')}</p>
+        <p className="text-sm text-text-secondary/70">{estimatedTimeLabel}</p>
       </div>
     </div>
   );
