@@ -18,7 +18,12 @@ import { preprocessHeart, selectHeartProfile, type HeartRenderProfile, type Hear
 import { generateAnatomicalImage } from '@/lib/geminiClient';
 import { trackGenerationTelemetry, type TelemetryCacheOutcome, type TelemetryProvider, type TelemetryStatus } from '@/lib/generationTelemetry';
 import { GenerateSchema, type AnatomicalRegion, type GenerationMode, type ScanType } from '@/lib/validation';
-import { MAX_FILE_SIZE_BYTES, SUPPORTED_MIME_TYPES } from '@/lib/constants';
+import {
+  ANNOTATION_PANEL_LEFT_RATIO,
+  ANNOTATION_PANEL_RIGHT_RATIO,
+  MAX_FILE_SIZE_BYTES,
+  SUPPORTED_MIME_TYPES,
+} from '@/lib/constants';
 import * as accountStore from '@/lib/accountStore';
 import { createApiErrorResponse } from '@/lib/apiErrors';
 
@@ -134,8 +139,8 @@ async function blackOutAnnotationPanels(inputBuffer: Buffer): Promise<Buffer> {
   const width = metadata.width ?? 1024;
   const height = metadata.height ?? 1024;
 
-  const leftWidth = Math.floor(width * 0.25);   // GE left measurement panel
-  const rightWidth = Math.floor(width * 0.12);  // GE device/probe info
+  const leftWidth = Math.floor(width * ANNOTATION_PANEL_LEFT_RATIO);   // GE left measurement panel
+  const rightWidth = Math.floor(width * ANNOTATION_PANEL_RIGHT_RATIO);  // GE device/probe info
 
   const black = { r: 0, g: 0, b: 0 };
 

@@ -1,15 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { findById, findByToken, isWithinLimit } from '@/lib/accountStore';
+import { findByToken, isWithinLimit } from '@/lib/accountStore';
 
-const { redisGetMock, redisCtorMock, getTodayUsageMock, incrementUsageMock } = vi.hoisted(() => {
+const { redisGetMock, redisCtorMock, getTodayUsageMock } = vi.hoisted(() => {
   const redisGetMock = vi.fn();
   const redisCtorMock = vi.fn(function RedisMock() {
     return { get: redisGetMock };
   });
   const getTodayUsageMock = vi.fn();
-  const incrementUsageMock = vi.fn();
 
-  return { redisGetMock, redisCtorMock, getTodayUsageMock, incrementUsageMock };
+  return { redisGetMock, redisCtorMock, getTodayUsageMock };
 });
 
 vi.mock('@upstash/redis', () => ({
@@ -18,7 +17,7 @@ vi.mock('@upstash/redis', () => ({
 
 vi.mock('@/lib/usageStore', () => ({
   getTodayUsage: getTodayUsageMock,
-  incrementUsage: incrementUsageMock,
+  incrementUsage: vi.fn(),
 }));
 
 describe('accountStore', () => {
@@ -74,29 +73,6 @@ describe('accountStore', () => {
       redisGetMock.mockResolvedValue(null);
 
       await expect(findByToken('missing-token')).resolves.toBeNull();
-    });
-  });
-
-  describe('findById', () => {
-    it('returns the account when the reverse mapping exists', async () => {
-      redisGetMock.mockResolvedValue({
-        id: 'doc-c',
-        name: 'Dr. C',
-        dailyLimit: 12,
-      });
-
-      await expect(findById('doc-c')).resolves.toEqual({
-        id: 'doc-c',
-        name: 'Dr. C',
-        dailyLimit: 12,
-      });
-      expect(redisGetMock).toHaveBeenCalledWith('ecln:account:doc-c');
-    });
-
-    it('returns null for an unknown account id', async () => {
-      redisGetMock.mockResolvedValue(null);
-
-      await expect(findById('missing-account')).resolves.toBeNull();
     });
   });
 

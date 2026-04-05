@@ -39,6 +39,9 @@ next-env.d.ts
 # Claude Code local config
 .claude/
 
+# Internal docs / audit plans
+/docs/
+
 # Multi-tenant: account config (contains PINs) and runtime usage data
 /config/accounts.json
 /data/

@@ -8,8 +8,9 @@ import ErrorMessage from '@/components/ErrorMessage';
 import { isApiErrorCode } from '@/lib/apiErrors';
 import { analyzeClientImageQuality, type ImageQualityWarning } from '@/lib/clientImageQuality';
 import { SESSION_KEY, ACCOUNT_ID_KEY } from '@/components/TokenGate';
-import { REGION_CONDITIONS, buildClinicalNotesPayload } from '@/lib/clinicalConditions';
+import { buildClinicalNotesPayload, getConditionsForRegion } from '@/lib/clinicalConditions';
 import {
+  getDefaultScanTypeForRegion,
   getGenerationDefaults,
   getPreferredModeForRegion,
   getRegionProfile,
@@ -20,6 +21,7 @@ import {
   isPreferredScanTypeForRegion,
   type AnatomicalRegion,
   type ScanType,
+  type SkinTone,
 } from '@/lib/validation';
 
 interface GenerateStepProps {
@@ -55,14 +57,15 @@ export default function GenerateStep({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [skinTone, setSkinTone] = useState<'normal' | 'moreno'>('normal');
+  const [skinTone, setSkinTone] = useState<SkinTone>('normal');
   const [mode, setMode] = useState<GenerationMode>(getPreferredModeForRegion(anatomicalRegion));
-  const [scanType, setScanType] = useState<ScanType>(getRegionProfile(anatomicalRegion).defaultScanType);
+  const [scanType, setScanType] = useState<ScanType>(getDefaultScanTypeForRegion(anatomicalRegion));
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [qualityWarnings, setQualityWarnings] = useState<ImageQualityWarning[]>([]);
 
   const regionProfile = getRegionProfile(anatomicalRegion);
+  const regionConditions = getConditionsForRegion(anatomicalRegion);
   const portraitDisabled = !isModeAllowedForRegion('portrait', anatomicalRegion);
   const scanTypeRecommendationMismatch = !isPreferredScanTypeForRegion(scanType, anatomicalRegion);
 
@@ -74,9 +77,9 @@ export default function GenerateStep({
 
   useEffect(() => {
     if (!isModeAllowedForRegion(mode, anatomicalRegion)) {
-      setMode(regionProfile.defaultMode);
+      setMode(getPreferredModeForRegion(anatomicalRegion));
     }
-  }, [anatomicalRegion, mode, regionProfile.defaultMode]);
+  }, [anatomicalRegion, mode]);
 
   useEffect(() => {
     let active = true;
@@ -102,7 +105,7 @@ export default function GenerateStep({
     onAnatomicalRegionChange(region);
     setSelectedConditions([]);
     setMode(getPreferredModeForRegion(region));
-    setScanType(getRegionProfile(region).defaultScanType);
+    setScanType(getDefaultScanTypeForRegion(region));
   };
 
   const loadingMessages =
@@ -398,7 +401,7 @@ export default function GenerateStep({
           className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         >
           <option value="">{tGenerate('clinicalConditionsPlaceholder')}</option>
-          {REGION_CONDITIONS[anatomicalRegion].map((c) => (
+          {regionConditions.map((c) => (
             <option key={c.id} value={c.id} disabled={selectedConditions.includes(c.id)}>
               {tGenerate(c.translationKey)}
             </option>
@@ -407,7 +410,7 @@ export default function GenerateStep({
         {selectedConditions.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-1">
             {selectedConditions.map((id) => {
-              const condition = REGION_CONDITIONS[anatomicalRegion].find((c) => c.id === id);
+              const condition = regionConditions.find((c) => c.id === id);
               if (!condition) return null;
               return (
                 <span

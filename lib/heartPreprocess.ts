@@ -1,5 +1,9 @@
 import sharp from 'sharp';
 import type { UltrasoundAnalysis } from './visionAnalysis';
+import {
+  ANNOTATION_PANEL_LEFT_RATIO,
+  ANNOTATION_PANEL_RIGHT_RATIO,
+} from './constants';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,10 +96,10 @@ const V_BAND_WIDTH_MIN_FRAC = 0.05;
 const ROI_CONTENT_THRESHOLD = 10;
 
 /** Left panel fraction already blacked out by blackOutAnnotationPanels. */
-const PANEL_LEFT_FRAC = 0.25;
+const PANEL_LEFT_FRAC = ANNOTATION_PANEL_LEFT_RATIO;
 
 /** Right panel fraction already blacked out. */
-const PANEL_RIGHT_FRAC = 0.12;
+const PANEL_RIGHT_FRAC = ANNOTATION_PANEL_RIGHT_RATIO;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -138,7 +142,7 @@ interface RingDetectionResult {
  * 4. Clean detected ring pixels by replacing them with the weighted average of
  *    their non-ring 7×7 neighbourhood.
  */
-export function detectMeasurementRings(
+function detectMeasurementRings(
   rawData: Buffer,
   width: number,
   height: number,
@@ -303,7 +307,7 @@ interface BandDetectionResult {
  * near-zero variance (distinguishing them from dark cardiac chambers which
  * have some texture variation).
  */
-export function detectBlackBands(
+function detectBlackBands(
   rawData: Buffer,
   width: number,
   height: number,
@@ -323,7 +327,6 @@ export function detectBlackBands(
   for (let y = 0; y < height; y++) {
     let sum = 0;
     let sumSq = 0;
-    let blackPixelCount = 0;
     const rowPixelCount = usableWidth;
 
     for (let x = xStart; x < xEnd; x++) {
@@ -331,16 +334,11 @@ export function detectBlackBands(
       const lum = luminance(rawData[idx], rawData[idx + 1], rawData[idx + 2]);
       sum += lum;
       sumSq += lum * lum;
-      if (lum < BAND_LUMINANCE_MAX) blackPixelCount++;
     }
 
     rowMeanLum[y] = sum / rowPixelCount;
     rowVariance[y] = sumSq / rowPixelCount - (rowMeanLum[y] * rowMeanLum[y]);
 
-    // Also check span: what fraction of usable width is truly black?
-    const spanFrac = blackPixelCount / rowPixelCount;
-    // Store span info — we re-check below when forming contiguous runs
-    (rowMeanLum as unknown as Record<string, number>)[`span_${y}`] = spanFrac;
   }
 
   // Find contiguous runs of black rows
@@ -441,7 +439,7 @@ export function detectBlackBands(
  * Find the bounding box of the non-black cardiac content within the central
  * region of the image (excluding already-blacked panels).
  */
-export function extractROI(
+function extractROI(
   rawData: Buffer,
   width: number,
   height: number,

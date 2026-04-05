@@ -1,6 +1,4 @@
-import { ANATOMICAL_REGIONS } from './validation';
-
-type AnatomicalRegion = (typeof ANATOMICAL_REGIONS)[number];
+import type { AnatomicalRegion } from './validation';
 
 export interface ClinicalCondition {
   readonly id: string;
@@ -9,7 +7,7 @@ export interface ClinicalCondition {
   readonly aliases: readonly string[];
 }
 
-export const REGION_CONDITIONS: Record<AnatomicalRegion, readonly ClinicalCondition[]> = {
+const REGION_CONDITIONS: Record<AnatomicalRegion, readonly ClinicalCondition[]> = {
   face: [
     { id: 'downSyndrome', aiLabel: 'Down syndrome', translationKey: 'conditionDownSyndrome', aliases: ['Down syndrome', 'Sindrome de Down', 'Síndrome de Down'] },
     { id: 'cleftLip', aiLabel: 'Cleft lip', translationKey: 'conditionCleftLip', aliases: ['Cleft lip', 'Labio leporino'] },
@@ -49,27 +47,15 @@ export const REGION_CONDITIONS: Record<AnatomicalRegion, readonly ClinicalCondit
 };
 
 const ALL_CONDITIONS = Object.values(REGION_CONDITIONS).flat();
-
-function normalizeClinicalText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
+const KNOWN_CONDITIONS_PREFIX = 'Known conditions';
+const ADDITIONAL_NOTES_PREFIX = 'Additional clinical notes';
 
 export function getConditionsForRegion(region: AnatomicalRegion): readonly ClinicalCondition[] {
   return REGION_CONDITIONS[region];
 }
 
-export function getClinicalConditionLabel(id: string): string | null {
+function getClinicalConditionLabel(id: string): string | null {
   return ALL_CONDITIONS.find((c) => c.id === id)?.aiLabel ?? null;
-}
-
-export function extractKnownClinicalConditions(clinicalNotes: string): string[] {
-  const normalized = normalizeClinicalText(clinicalNotes);
-  return ALL_CONDITIONS
-    .filter((c) => c.aliases.some((alias) => normalized.includes(normalizeClinicalText(alias))))
-    .map((c) => c.aiLabel);
 }
 
 export function buildClinicalNotesPayload(
@@ -85,11 +71,11 @@ export function buildClinicalNotesPayload(
   const parts: string[] = [];
 
   if (deduped.length > 0) {
-    parts.push(`Known conditions: ${deduped.join(', ')}.`);
+    parts.push(`${KNOWN_CONDITIONS_PREFIX}: ${deduped.join(', ')}.`);
   }
 
   if (trimmed) {
-    parts.push(`Additional clinical notes: ${trimmed}`);
+    parts.push(`${ADDITIONAL_NOTES_PREFIX}: ${trimmed}`);
   }
 
   return parts.join(' ');

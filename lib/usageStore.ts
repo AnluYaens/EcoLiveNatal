@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import { DAILY_LIMIT_PRUNE_DAYS } from './constants';
+import {
+  DAILY_LIMIT_PRUNE_DAYS,
+  REDIS_USAGE_KEY_PREFIX,
+  USAGE_REDIS_TTL_SECONDS,
+} from './constants';
+import { getRedisClient, isRedisConfigured } from './redis';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,35 +71,23 @@ function incrementUsageInFile(accountId: string): Promise<void> {
 
 function buildRedisKey(accountId: string): string {
   const today = getTodayKey();
-  return `ecln:usage:${today}:${accountId}`;
+  return `${REDIS_USAGE_KEY_PREFIX}:${today}:${accountId}`;
 }
 
 async function getTodayUsageFromRedis(accountId: string): Promise<number> {
-  const { Redis } = await import('@upstash/redis');
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
+  const redis = getRedisClient();
   const value = await redis.get<number>(buildRedisKey(accountId));
   return value ?? 0;
 }
 
 async function incrementUsageInRedis(accountId: string): Promise<void> {
-  const { Redis } = await import('@upstash/redis');
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
+  const redis = getRedisClient();
   const key = buildRedisKey(accountId);
   await redis.incr(key);
-  await redis.expire(key, 90 * 24 * 3600); // auto-expire after 90 days
+  await redis.expire(key, USAGE_REDIS_TTL_SECONDS);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
-
-function isRedisConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL);
-}
 
 export async function getTodayUsage(accountId: string): Promise<number> {
   if (isRedisConfigured()) return getTodayUsageFromRedis(accountId);
