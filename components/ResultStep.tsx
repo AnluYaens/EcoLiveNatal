@@ -53,6 +53,94 @@ export default function ResultStep({
     return new Blob([bytes], { type: 'image/png' });
   };
 
+  const loadImage = (src: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('image-load-failed'));
+      image.src = src;
+    });
+
+  const createSplitComparisonBlob = async (): Promise<Blob | null> => {
+    if (!beforeUrl) {
+      return null;
+    }
+
+    try {
+      const [ecoImage, resultImage] = await Promise.all([
+        loadImage(beforeUrl),
+        loadImage(`data:image/png;base64,${imageBase64}`),
+      ]);
+
+      const padding = 32;
+      const gap = 18;
+      const labelHeight = 48;
+      const frameWidth = Math.max(ecoImage.width, resultImage.width);
+      const frameHeight = Math.max(ecoImage.height, resultImage.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = padding * 2 + frameWidth * 2 + gap;
+      canvas.height = padding * 2 + labelHeight + frameHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return null;
+      }
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const dividerX = padding + frameWidth + gap / 2;
+      ctx.strokeStyle = '#E5E7EB';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(dividerX, padding);
+      ctx.lineTo(dividerX, canvas.height - padding);
+      ctx.stroke();
+
+      ctx.fillStyle = '#3D3535';
+      ctx.font = '600 24px "Plus Jakarta Sans", Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(t('eco'), padding + frameWidth / 2, padding + labelHeight / 2);
+      ctx.fillText(
+        t('result'),
+        padding + frameWidth + gap + frameWidth / 2,
+        padding + labelHeight / 2,
+      );
+
+      const drawContained = (
+        image: HTMLImageElement,
+        x: number,
+        y: number,
+        boxWidth: number,
+        boxHeight: number,
+      ) => {
+        const scale = Math.min(boxWidth / image.width, boxHeight / image.height);
+        const drawWidth = image.width * scale;
+        const drawHeight = image.height * scale;
+        const offsetX = x + (boxWidth - drawWidth) / 2;
+        const offsetY = y + (boxHeight - drawHeight) / 2;
+        ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+      };
+
+      const frameY = padding + labelHeight;
+      drawContained(ecoImage, padding, frameY, frameWidth, frameHeight);
+      drawContained(
+        resultImage,
+        padding + frameWidth + gap,
+        frameY,
+        frameWidth,
+        frameHeight,
+      );
+
+      return await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/png'),
+      );
+    } catch {
+      return null;
+    }
+  };
+
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -62,9 +150,19 @@ export default function ResultStep({
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-  const buildShareFiles = (): File[] => {
+  const buildShareFiles = async (): Promise<File[]> => {
     const files: File[] = [];
     const resultBlob = base64ToBlob();
+    const splitBlob = await createSplitComparisonBlob();
+
+    if (splitBlob) {
+      files.push(
+        new File([splitBlob], 'retrato-ecolivenatal-split.png', {
+          type: 'image/png',
+        }),
+      );
+    }
+
     files.push(
       new File([resultBlob], 'retrato-ecolivenatal-resultado.png', {
         type: 'image/png',
@@ -79,7 +177,7 @@ export default function ResultStep({
   const isMobile = () => /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
   const handleDownload = async () => {
-    const files = buildShareFiles();
+    const files = await buildShareFiles();
 
     if (isMobile() && navigator.canShare?.({ files })) {
       try {
@@ -94,7 +192,7 @@ export default function ResultStep({
   };
 
   const handleWhatsApp = async () => {
-    const files = buildShareFiles();
+    const files = await buildShareFiles();
 
     if (isMobile() && navigator.canShare?.({ files })) {
       try {
