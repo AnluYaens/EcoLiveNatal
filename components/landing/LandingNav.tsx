@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { APP_NAME, CLINIC_LOGO, CLINIC_NAME } from '@/lib/constants';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { defaultLocale, isValidLocale } from '@/i18n/config';
 import { getLocalizedHash, getLocalizedPath } from '@/lib/localePaths';
 
@@ -71,6 +72,7 @@ export default function LandingNav() {
 
         {/* CTA + hamburger */}
         <div className="flex items-center gap-3">
+          <LocaleSwitcher />
           <Link
             href={appPath}
             className="bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors shadow-sm"
@@ -102,6 +104,7 @@ export default function LandingNav() {
           <button type="button" onClick={() => { scrollTo('proceso'); setMenuOpen(false); }} className={`${linkClass} text-left`}>{t('process')}</button>
           <button type="button" onClick={() => { scrollTo('resultados'); setMenuOpen(false); }} className={`${linkClass} text-left`}>{t('results')}</button>
           <Link href={faqPath} onClick={() => setMenuOpen(false)} className={linkClass}>{t('faq')}</Link>
+          <LocaleSwitcher />
         </div>
       )}
     </nav>

@@ -145,7 +145,7 @@
     "newSession": "Nueva sesión",
     "eco": "Eco",
     "result": "Resultado",
-    "downloadHint": "Descarga el resultado y la ecografía original en alta resolución."
+    "downloadHint": "Descarga la comparación split, el resultado y la ecografía original en alta resolución."
   },
   "errors": {
     "contentBlock": "La imagen no pudo procesarse. Intenta con una foto diferente.",
@@ -179,6 +179,10 @@
     "footerText": "Imagen ilustrativa generada por IA",
     "closeButton": "Cerrar",
     "openInfo": "Abrir información"
+  },
+  "common": {
+    "switchToEnglish": "Cambiar a inglés",
+    "switchToSpanish": "Cambiar a español"
   },
   "landing": {
     "nav": {

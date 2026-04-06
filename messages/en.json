@@ -145,7 +145,7 @@
     "newSession": "New session",
     "eco": "Eco",
     "result": "Result",
-    "downloadHint": "Download the result and the original ultrasound in high resolution."
+    "downloadHint": "Download the split comparison, the result, and the original ultrasound in high resolution."
   },
   "errors": {
     "contentBlock": "The image could not be processed. Try a different photo.",
@@ -179,6 +179,10 @@
     "footerText": "AI-generated illustrative image",
     "closeButton": "Close",
     "openInfo": "Open information"
+  },
+  "common": {
+    "switchToEnglish": "Switch to English",
+    "switchToSpanish": "Switch to Spanish"
   },
   "landing": {
     "nav": {
