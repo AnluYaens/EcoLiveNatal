@@ -76,9 +76,11 @@ function buildPortraitPrompt(
 
   const base =
     anatomicalRegion === "fullBody"
-      ? `The input image is ${scanDesc} showing the full fetal body. Transform this medical scan into an ultra-realistic newborn portrait photograph of THIS SPECIFIC baby — a full-body shot in portrait orientation.
+      ? `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
 
-Clothing requirement: the baby must be fully dressed in a soft cotton onesie or sleeper suit, or gently swaddled in a clean white or pastel blanket — no exposed skin below the wrists and ankles, no nudity of any kind. Do NOT invent a body, shoulders, or hands if they are not literally visible in the input crop.
+The input image is ${scanDesc} showing the full fetal body. Transform this medical scan into an ultra-realistic newborn portrait photograph of THIS SPECIFIC baby — a full-body shot in portrait orientation.
+
+Clothing requirement: the baby must be fully dressed in a soft cotton onesie or sleeper suit, or gently swaddled in a clean white or pastel blanket — fully covered below the wrists and ankles. Do NOT invent a body, shoulders, or hands if they are not literally visible in the input crop.
 
 SPATIAL AND POSE REQUIREMENT (CRITICAL): You MUST maintain the EXACT same body pose, rotation, crop, framing, and scale as the input image. If the baby is curled, lying on its side, diagonal, or upside down in the ultrasound, reproduce that EXACT same rotation and orientation in the frame. DO NOT rotate the subject to make them upright. DO NOT re-center them. DO NOT straighten or repose the baby. The head and limbs must occupy the exact same spatial coordinates as the input.
 
@@ -93,11 +95,22 @@ Skin texture: real newborn skin with fine peach fuzz, tiny pores visible at clos
 Quality requirements: individually defined fingers and toes (no fused or webbed digits), anatomically correct proportions for gestational age, realistic newborn skin imperfections (milia, stork bites acceptable). ZERO plastic or waxy skin, ZERO doll-like eyes, ZERO uncanny valley smoothness, ZERO extra limbs or fingers, ZERO text, ZERO logos, ZERO watermarks, ZERO medical equipment, ZERO ultrasound artifacts.
 
 Priority rule: identity and geometry come before aesthetics. If you must choose, match the specific baby's pose, proportions, and visible features instead of making the image prettier or more generic.${scanType === "2d" ? "\n\nNote: this is a 2D ultrasound with limited geometric detail. Infer 3D body structure from the visible cross-section while maintaining fidelity to what is shown. Do not invent features that are not visible." : ""}`
-      : `Edit this image: replace the ultrasound texture with photorealistic newborn skin. Keep the EXACT same silhouette, contours, face position, head angle, tilt, and scale. Do not change the composition or framing — this is a texture swap, not a new portrait.
+      : `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal face prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
 
-Preserve THIS baby's specific facial features exactly as they appear — nose shape, lip shape, chin, forehead, cheeks. If a hand or arm is visible near the face, keep it at the same position. Do not add body or shoulders not visible in the input.
+Edit this image: replace the ultrasound texture with photorealistic newborn skin. Keep the EXACT same silhouette, contours, face position, head angle, tilt, and scale. Do not change the composition or framing — this is a texture swap, not a new portrait.
 
-Hard constraints: treat the crop as a fixed frame. Do NOT center the face if it is off-center. Do NOT rotate the head upright. Do NOT symmetrize, beautify, or idealize facial proportions. If the face is partially obscured, preserve that same occlusion rather than inventing missing anatomy.
+IDENTITY FIDELITY (CRITICAL — this is the #1 priority): This must look like THIS SPECIFIC baby, not a generic newborn. Study the ultrasound carefully and reproduce:
+- The EXACT nose bridge width, nose tip shape, and nostril angle visible in the scan
+- The EXACT lip thickness, lip curvature, and mouth width
+- The EXACT chin prominence and jaw line shape
+- The EXACT forehead slope and brow ridge
+- The EXACT cheek fullness and face width-to-height ratio
+- The EXACT proportional distances between features (eye-to-nose, nose-to-lip, lip-to-chin)
+If a feature is distinctive in the ultrasound (e.g., a button nose, full lips, prominent chin, round cheeks), it MUST be distinctively the same in the output. Do NOT average or normalize features toward a generic baby face.
+
+If a hand or arm is visible near the face, keep it at the same position. Do not add body or shoulders not visible in the input.
+
+Hard constraints: treat the crop as a fixed frame. Do NOT center the face if it is off-center. Do NOT rotate the head upright. Do NOT symmetrize, beautify, or idealize facial proportions. Do NOT extend, stretch, or enlarge the baby's head or body to fill empty or dark areas — the baby must occupy the SAME proportion and position in the frame as in the input. Any solid black horizontal or vertical bands at the edges are preprocessing artifacts: replace them with plain background, NOT with extended anatomy.
 
 Skin: realistic newborn with peach fuzz, pores, natural color variation. Light cream background. Family-safe close-up. No text, no logos, no medical equipment.${scanType === "2d" ? " 2D ultrasound — infer 3D structure from visible cross-section." : ""}`;
 
@@ -122,7 +135,7 @@ const realisticRegionDetails: Record<AnatomicalRegion, string> = {
 
   heart: `Edit this image: replace the ultrasound texture with photorealistic OPAQUE fetal tissue in GE Voluson HDlive style. Keep the EXACT same cross-sectional shape, composition, and spatial layout as the input. This is a texture swap, not a new illustration.
 
-Ignore any yellow measurement text or crosshairs. All tissue must be SOLID and OPAQUE. Cardiac chambers are deep dark open cavities, myocardium is solid rose-pink with muscular striations, lungs are solid opaque amber with spongy texture, chest wall is solid warm amber, spine is solid ivory bone. Warm HDlive 3D directional lighting with depth and specular highlights. NO TEXT, no labels, no annotations.`,
+Ignore any yellow measurement text or crosshairs. All tissue must be SOLID and OPAQUE. Cardiac chambers are deep dark open cavities, myocardium is solid rose-pink with muscular striations, lungs are solid opaque amber with spongy texture, chest wall is solid warm amber, spine is solid ivory bone. Warm HDlive 3D directional lighting with depth and specular highlights. NO TEXT, no labels, no annotations. Do NOT turn black gaps, black bands, or masked regions into tissue boundaries or anatomical structures. Areas from removed overlays or preprocessing masks must remain as absent background, not become muscle or chamber walls.`,
 
   brain: `This scan shows fetal intracranial anatomy.
 
@@ -475,6 +488,11 @@ function buildVisionOrganBlock(analysis: UltrasoundAnalysis): string {
   // measurements omitted — cardiac overlays are annotation noise, not anatomy
   lines.push(`\nOverall: ${analysis.overallDescription}`);
 
+  lines.push("");
+  lines.push(
+    `ARTIFACT WARNING: Any solid black horizontal or vertical bands in the input are preprocessing artifacts (masked regions), NOT anatomical boundaries. Do NOT render them as tissue, chamber walls, or structural edges. Treat them as absent background.`,
+  );
+
   return lines.join("\n");
 }
 
@@ -567,13 +585,17 @@ function buildEnhancedPortraitPrompt(
         ? "render a profile view from the same side"
         : "render a 3/4 view from the same side";
 
-  const base = `Edit this image: replace the ultrasound texture with photorealistic newborn skin. Keep the EXACT same silhouette, face position, head angle, tilt, and scale. This is a texture swap, not a new portrait.
+  const base = `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal face prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
+
+Edit this image: replace the ultrasound texture with photorealistic newborn skin. Keep the EXACT same silhouette, face position, head angle, tilt, and scale. This is a texture swap, not a new portrait.
 
 ${spatialBlock ? `${spatialBlock}\n\n` : ""}View angle: "${analysis.viewAngle}" — ${viewAngleInstruction}.${analysis.spatialLayout ? ` Head tilt: ${analysis.spatialLayout.headTiltDegrees}° — preserve exactly.` : ""}
 
 ${visionBlock}
 
-Reproduce THIS baby's specific features exactly as analyzed above. If a hand is visible, keep it at the same position. Do not add body or shoulders not in the input. Treat the crop as a fixed frame: do not center the face, do not rotate it upright, and do not invent hidden anatomy. Family-safe close-up. Realistic newborn skin with peach fuzz and natural color variation. Light cream background. No text, no logos.${scanType === "2d" ? " 2D ultrasound — use analysis descriptions to guide reconstruction." : ""}`;
+IDENTITY FIDELITY (CRITICAL — this is the #1 priority): Reproduce THIS SPECIFIC baby's features exactly as analyzed above — not a generic newborn. The exact nose bridge width, lip thickness, chin shape, forehead slope, cheek fullness, and proportional distances between features must match the ultrasound. If a feature is distinctive (e.g., button nose, full lips, prominent chin), it MUST be distinctively the same in the output.
+
+If a hand is visible, keep it at the same position. Do not add body or shoulders not in the input. Treat the crop as a fixed frame: do not center the face, do not rotate it upright, and do not invent hidden anatomy. Family-safe close-up. Realistic newborn skin with peach fuzz and natural color variation. Light cream background. No text, no logos.${scanType === "2d" ? " 2D ultrasound — use analysis descriptions to guide reconstruction." : ""}`;
 
   const skinToneModifier =
     skinTone === "moreno"

@@ -2,7 +2,7 @@ import OpenAI, { toFile } from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODERATION_RETRY_SUFFIX =
-  'Safety requirements: non-sexual newborn portrait only. Keep the baby fully swaddled or wearing a onesie, with no nudity and no exposed chest or genital area.';
+  'This is a clinical prenatal face prediction — a family-safe medical illustration for expecting parents. The baby must be gently swaddled in a soft blanket with only the face visible. Warm, wholesome newborn portrait only.';
 const PORTRAIT_MODEL = 'gpt-image-1.5' as const;
 type OpenAIAPIError = InstanceType<typeof OpenAI.APIError>;
 type AttemptPhase =
