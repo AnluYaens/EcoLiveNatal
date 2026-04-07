@@ -36,8 +36,8 @@ function getPreprocessConfig(options: PreprocessOptions): PreprocessConfig {
   }
 
   return {
-    topMaskRatio: 0.12,
-    bottomMaskRatio: 0.12,
+    topMaskRatio: 0.08,
+    bottomMaskRatio: 0.06,
     sideMaskRatio: scanType === '2d' ? 0.02 : 0,
     normalize: true,
   };
