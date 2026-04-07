@@ -45,7 +45,7 @@ const GEMINI_TIMEOUT_MS = 120_000;
 const USE_GEMINI_FOR_ORGANS = process.env.USE_GEMINI_FOR_ORGANS === 'true';
 const IMAGE_CACHE_TTL_MS = 45 * 60_000;
 const IMAGE_CACHE_MAX_ENTRIES = 100;
-const PROMPT_FINGERPRINT_VERSION = 'v5-portrait-mask';
+const PROMPT_FINGERPRINT_VERSION = 'v8-identity-fidelity';
 const ENABLE_SESSION_IMAGE_CACHE = process.env.ENABLE_SESSION_IMAGE_CACHE === 'true';
 const ENABLE_VISION_ANALYSIS = process.env.ENABLE_VISION_ANALYSIS === 'true';
 
@@ -505,8 +505,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 6b. Vision analysis (optional, non-blocking on failure)
+    // Face+portrait skips vision analysis to avoid black-band regression (see commit 8d579f4)
+    const skipVisionAnalysis = anatomicalRegion === 'face' && mode === 'portrait';
     let analysis: UltrasoundAnalysis | null = null;
-    if (ENABLE_VISION_ANALYSIS) {
+    if (skipVisionAnalysis) {
+      console.log('[generate] vision analysis SKIPPED for face+portrait (black-band fix)');
+    } else if (ENABLE_VISION_ANALYSIS) {
       try {
         console.log(`[generate] vision analysis starting for ${anatomicalRegion}...`);
         const analysisInput = anatomicalRegion === 'face' ? buffer : processed;
