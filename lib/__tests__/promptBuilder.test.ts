@@ -42,6 +42,13 @@ describe('buildPrompt', () => {
       expect(result).toContain('Do NOT symmetrize, beautify, or idealize facial proportions.');
       expect(result).toContain('Family-safe close-up.');
     });
+
+    it('forbids black bands and does not instruct preservation of occlusion', () => {
+      const result = buildPrompt('ultra', 50);
+      expect(result).toContain('preprocessing artifacts');
+      expect(result).toContain('Do NOT extend, stretch, or enlarge');
+      expect(result).not.toContain('preserve that same occlusion');
+    });
   });
 
   describe('style modifiers', () => {
@@ -411,6 +418,17 @@ describe('buildHeartStrictPrompt', () => {
     const result = buildHeartStrictPrompt('2d', '', null);
     expect(result).toContain('PROFILE: STRICT');
     expect(result).not.toContain('CARDIAC STRUCTURE DETAILS');
+  });
+
+  it('contains black band artifact prohibition in base heart prompt', () => {
+    const result = buildHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).toContain('Do NOT turn black gaps, black bands, or masked regions into tissue boundaries');
+  });
+
+  it('contains black band artifact warning from vision block', () => {
+    const result = buildHeartStrictPrompt('2d', '', heartAnalysis);
+    expect(result).toContain('ARTIFACT WARNING');
+    expect(result).toContain('NOT anatomical boundaries');
   });
 });
 

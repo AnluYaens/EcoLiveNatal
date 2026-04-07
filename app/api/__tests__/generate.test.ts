@@ -334,4 +334,27 @@ describe('/api/generate usage handling', () => {
     const { preprocessHeart } = await import('@/lib/heartPreprocess');
     expect(preprocessHeart).not.toHaveBeenCalled();
   });
+
+  it('face+portrait skips analyzeUltrasound even when vision analysis is enabled', async () => {
+    process.env.MOCK_API = 'true';
+    process.env.ENABLE_VISION_ANALYSIS = 'true';
+    const POST = await getHandler();
+
+    const res = await POST(makeRequest({ mode: 'portrait', anatomicalRegion: 'face' }));
+
+    expect(res.status).toBe(200);
+    expect(analyzeUltrasoundMock).not.toHaveBeenCalled();
+  });
+
+  it('face+portrait uses buildPrompt not buildEnhancedPrompt', async () => {
+    process.env.MOCK_API = 'true';
+    process.env.ENABLE_VISION_ANALYSIS = 'true';
+    const POST = await getHandler();
+
+    const res = await POST(makeRequest({ mode: 'portrait', anatomicalRegion: 'face' }));
+
+    expect(res.status).toBe(200);
+    expect(buildPromptMock).toHaveBeenCalled();
+    expect(buildEnhancedPromptMock).not.toHaveBeenCalled();
+  });
 });
