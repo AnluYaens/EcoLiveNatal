@@ -89,7 +89,6 @@ const PNG_BASE64 =
 function makeRequest(overrides: {
   token?: string;
   accountId?: string;
-  style?: string;
   creativity?: string;
   mode?: string;
   anatomicalRegion?: string;
@@ -103,7 +102,6 @@ function makeRequest(overrides: {
       type: 'image/png',
     }),
   );
-  formData.append('style', overrides.style ?? 'ultra');
   formData.append('creativity', overrides.creativity ?? '50');
   formData.append('mode', overrides.mode ?? 'portrait');
   formData.append('anatomicalRegion', overrides.anatomicalRegion ?? 'face');
@@ -335,7 +333,7 @@ describe('/api/generate usage handling', () => {
     expect(preprocessHeart).not.toHaveBeenCalled();
   });
 
-  it('face+portrait skips analyzeUltrasound even when vision analysis is enabled', async () => {
+  it('face+portrait calls analyzeUltrasound when vision analysis is enabled', async () => {
     process.env.MOCK_API = 'true';
     process.env.ENABLE_VISION_ANALYSIS = 'true';
     const POST = await getHandler();
@@ -343,12 +341,13 @@ describe('/api/generate usage handling', () => {
     const res = await POST(makeRequest({ mode: 'portrait', anatomicalRegion: 'face' }));
 
     expect(res.status).toBe(200);
-    expect(analyzeUltrasoundMock).not.toHaveBeenCalled();
+    expect(analyzeUltrasoundMock).toHaveBeenCalled();
   });
 
-  it('face+portrait uses buildPrompt not buildEnhancedPrompt', async () => {
+  it('face+portrait falls back to buildPrompt when vision analysis returns null', async () => {
     process.env.MOCK_API = 'true';
     process.env.ENABLE_VISION_ANALYSIS = 'true';
+    // analyzeUltrasoundMock returns null by default (see beforeEach)
     const POST = await getHandler();
 
     const res = await POST(makeRequest({ mode: 'portrait', anatomicalRegion: 'face' }));

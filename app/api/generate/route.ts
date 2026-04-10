@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
-import { preprocessUltrasound, stripYellowOverlay } from '@/lib/imagePreprocess';
+import { preprocessUltrasound, stripYellowOverlay, hasMaskStrips } from '@/lib/imagePreprocess';
 import { generatePortrait } from '@/lib/openaiClient';
 import {
   buildPrompt,
   buildEnhancedPrompt,
   buildGeminiPrompt,
-  buildHeartStrictPrompt,
-  buildHeartSalvagePrompt,
   buildGeminiHeartStrictPrompt,
   buildGeminiHeartSalvagePrompt,
 } from '@/lib/promptBuilder';
@@ -21,7 +19,6 @@ import {
   GenerateSchema,
   type AnatomicalRegion,
   type GenerationMode,
-  type GenerationStyle,
   type ScanType,
   type SkinTone,
 } from '@/lib/validation';
@@ -58,7 +55,6 @@ interface SessionImageCacheEntry {
 }
 
 interface PromptBuildInput {
-  style: GenerationStyle;
   creativity: number;
   skinTone: SkinTone;
   mode: GenerationMode;
@@ -67,6 +63,8 @@ interface PromptBuildInput {
   clinicalNotes: string;
   analysis: UltrasoundAnalysis | null;
   heartProfile: HeartRenderProfile | null;
+  proportionalW?: number;
+  proportionalH?: number;
 }
 
 interface BuiltPrompt {
@@ -79,15 +77,12 @@ const sessionImageCache = new Map<RequestFingerprint, SessionImageCacheEntry>();
 
 function createRequestFingerprint(
   processedImageBuffer: Buffer,
-  style: string,
   creativity: number,
   anatomicalRegion: string,
   clinicalNotes: string,
 ): RequestFingerprint {
   const hash = createHash('sha256');
   hash.update(processedImageBuffer);
-  hash.update('\n');
-  hash.update(style);
   hash.update('\n');
   hash.update(String(creativity));
   hash.update('\n');
@@ -243,30 +238,14 @@ function getTelemetryProvider(useGeminiPath: boolean): TelemetryProvider {
 }
 
 function buildOpenAiPrompt(input: PromptBuildInput): BuiltPrompt {
-  if (input.anatomicalRegion === 'heart' && input.heartProfile) {
-    return {
-      prompt:
-        input.heartProfile === 'strict'
-          ? buildHeartStrictPrompt(
-              input.scanType,
-              input.clinicalNotes,
-              input.analysis,
-            )
-          : buildHeartSalvagePrompt(
-              input.scanType,
-              input.clinicalNotes,
-              input.analysis,
-            ),
-      promptType: `heart-${input.heartProfile}`,
-      analysisUsed: input.analysis !== null,
-    };
-  }
-
   const analysisUsed = input.analysis !== null;
+  const lbGeom =
+    input.proportionalW && input.proportionalH
+      ? { proportionalW: input.proportionalW, proportionalH: input.proportionalH }
+      : undefined;
   return {
     prompt: analysisUsed
       ? buildEnhancedPrompt(
-          input.style,
           input.creativity,
           input.skinTone,
           input.mode,
@@ -274,9 +253,9 @@ function buildOpenAiPrompt(input: PromptBuildInput): BuiltPrompt {
           input.anatomicalRegion,
           input.clinicalNotes,
           input.analysis,
+          lbGeom,
         )
       : buildPrompt(
-          input.style,
           input.creativity,
           input.skinTone,
           input.mode,
@@ -298,11 +277,13 @@ function buildGeminiProviderPrompt(input: PromptBuildInput): BuiltPrompt {
               input.scanType,
               input.clinicalNotes,
               input.analysis,
+              input.creativity,
             )
           : buildGeminiHeartSalvagePrompt(
               input.scanType,
               input.clinicalNotes,
               input.analysis,
+              input.creativity,
             ),
       promptType: `heart-${input.heartProfile}`,
       analysisUsed: input.analysis !== null,
@@ -404,7 +385,6 @@ export async function POST(req: NextRequest) {
   }
 
   const imageFile = formData.get('image');
-  const styleRaw = formData.get('style');
   const creativityRaw = formData.get('creativity');
   const skinToneRaw = formData.get('skinTone');
   const modeRaw = formData.get('mode');
@@ -417,9 +397,8 @@ export async function POST(req: NextRequest) {
     return createApiErrorResponse('badRequest', 400);
   }
 
-  // 4. Validate style + creativity + skinTone with Zod
+  // 4. Validate creativity + skinTone with Zod
   const parsed = GenerateSchema.safeParse({
-    style: styleRaw,
     creativity: Number(creativityRaw),
     skinTone: skinToneRaw ?? 'normal',
     mode: modeRaw ?? 'portrait',
@@ -431,7 +410,7 @@ export async function POST(req: NextRequest) {
     await recordTelemetry('badRequest');
     return createApiErrorResponse('badRequest', 400);
   }
-  const { style, creativity, skinTone, mode, scanType, anatomicalRegion, clinicalNotes } = parsed.data;
+  const { creativity, skinTone, mode, scanType, anatomicalRegion, clinicalNotes } = parsed.data;
   telemetryContext.anatomicalRegion = anatomicalRegion;
   telemetryContext.mode = mode;
   telemetryContext.scanType = scanType;
@@ -504,17 +483,54 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 6a-post. Save a clean proportional buffer for vision analysis before
+    // letterboxing. Letterboxing adds black padding bars whose y-offsets would
+    // shift spatial coordinates; feature/direction analysis is more accurate on
+    // the unpadded image. facingDirection and feature descriptions are text-based
+    // and coordinate-independent, but the coordinate analysis is cleaner here too.
+    const processedForAnalysis = processed;
+
+    // Capture proportional dimensions before letterboxing. Vision analysis runs
+    // on processedForAnalysis (proportional frame), so spatial coordinates like
+    // subjectCenterX/Y and subjectOccupancyPercent are relative to pW×pH, not
+    // the 1024×1024 canvas. These are threaded to the prompt builder to apply
+    // the letterbox correction formula before embedding values in BLOCK A.
+    let proportionalW = 1024;
+    let proportionalH = 1024;
+    if (!useGeminiPath) {
+      const propMeta = await sharp(processedForAnalysis).metadata();
+      proportionalW = propMeta.width ?? 1024;
+      proportionalH = propMeta.height ?? 1024;
+    }
+
+    // For OpenAI: letterbox the preprocessed image to exactly 1024×1024.
+    // 'inside' fit in preprocessUltrasound preserves the original aspect ratio for
+    // accurate mask strip placement, but sends a non-square image to OpenAI.
+    // OpenAI always outputs 1024×1024, so without padding it fills the tight crop
+    // and the portrait looks zoomed in. 'contain' pads with black so the face is
+    // naturally proportioned in the frame. The trim step later removes these bars.
+    if (!useGeminiPath) {
+      processed = await sharp(processed)
+        .resize(1024, 1024, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0 },
+          withoutEnlargement: true,
+        })
+        .png()
+        .toBuffer();
+    }
+
     // 6b. Vision analysis (optional, non-blocking on failure)
-    // Face+portrait skips vision analysis to avoid black-band regression (see commit 8d579f4)
-    const skipVisionAnalysis = anatomicalRegion === 'face' && mode === 'portrait';
+    // Runs on the pre-letterbox buffer so spatial coordinates are accurate.
+    // Previously skipped for face+portrait due to black mask strips corrupting
+    // coordinate analysis — those strips are now removed (face has 0 mask ratios),
+    // so vision analysis is re-enabled: facingDirection fixes mirrored portraits,
+    // feature descriptions (nose, lips, chin) fix generic results.
     let analysis: UltrasoundAnalysis | null = null;
-    if (skipVisionAnalysis) {
-      console.log('[generate] vision analysis SKIPPED for face+portrait (black-band fix)');
-    } else if (ENABLE_VISION_ANALYSIS) {
+    if (ENABLE_VISION_ANALYSIS) {
       try {
         console.log(`[generate] vision analysis starting for ${anatomicalRegion}...`);
-        const analysisInput = anatomicalRegion === 'face' ? buffer : processed;
-        analysis = await analyzeUltrasound(analysisInput, anatomicalRegion, scanType, sanitizedNotes);
+        analysis = await analyzeUltrasound(processedForAnalysis, anatomicalRegion, scanType, sanitizedNotes);
         if (analysis) {
           console.log(
             `[generate] vision analysis OK — viewAngle=${analysis.viewAngle} quality=${analysis.imageQuality} structures=${analysis.visibleStructures.length}`,
@@ -543,7 +559,6 @@ export async function POST(req: NextRequest) {
 
     // 7a. Provider-specific prompt building
     const promptBuildInput: PromptBuildInput = {
-      style,
       creativity,
       skinTone,
       mode,
@@ -552,6 +567,8 @@ export async function POST(req: NextRequest) {
       clinicalNotes: sanitizedNotes,
       analysis,
       heartProfile,
+      proportionalW,
+      proportionalH,
     };
     const builtPrompt = useGeminiPath
       ? buildGeminiProviderPrompt(promptBuildInput)
@@ -569,7 +586,6 @@ export async function POST(req: NextRequest) {
       telemetryContext.cacheOutcome = 'miss';
       requestFingerprint = createRequestFingerprint(
         processed,
-        style,
         creativity,
         anatomicalRegion,
         sanitizedNotes,
@@ -679,9 +695,15 @@ export async function POST(req: NextRequest) {
         .modulate({ brightness: 1.03, saturation: 1.12 });
     }
 
-    // Trim the black padding that was added during preprocessing to restore original aspect
+    // Trim letterbox/mask bars added during preprocessing.
+    // OpenAI path: always trim — the contain step above always adds black letterbox bars.
+    // Gemini path: trim only when preprocessing added mask strips (hasMaskStrips).
     const untrimmedBuffer = await postProcessed.png().toBuffer();
-    postProcessed = sharp(untrimmedBuffer).trim({ background: '#000000' });
+    if (!useGeminiPath || hasMaskStrips(anatomicalRegion, scanType)) {
+      postProcessed = sharp(untrimmedBuffer).trim({ background: '#000000' });
+    } else {
+      postProcessed = sharp(untrimmedBuffer);
+    }
 
     const finalBuffer = await postProcessed.png().toBuffer();
     const base64 = finalBuffer.toString('base64');
