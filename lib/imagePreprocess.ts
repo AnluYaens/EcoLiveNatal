@@ -19,9 +19,9 @@ function getPreprocessConfig(options: PreprocessOptions): PreprocessConfig {
 
   if (anatomicalRegion === 'fullBody') {
     return {
-      topMaskRatio: 0.1,
-      bottomMaskRatio: 0.06,
-      sideMaskRatio: 0.01,
+      topMaskRatio: 0,
+      bottomMaskRatio: 0,
+      sideMaskRatio: 0,
       normalize: true,
     };
   }
@@ -35,12 +35,26 @@ function getPreprocessConfig(options: PreprocessOptions): PreprocessConfig {
     };
   }
 
+  // face: no padding — face/fullBody scans never have patient info overlays
   return {
-    topMaskRatio: 0.08,
-    bottomMaskRatio: 0.06,
+    topMaskRatio: 0,
+    bottomMaskRatio: 0,
     sideMaskRatio: scanType === '2d' ? 0.02 : 0,
     normalize: true,
   };
+}
+
+/**
+ * Returns true if preprocessUltrasound will composite black mask strips for
+ * the given region/scanType. Used by the generation route to decide whether
+ * post-generation trimming is needed.
+ */
+export function hasMaskStrips(
+  anatomicalRegion: AnatomicalRegion,
+  scanType: ScanType,
+): boolean {
+  const config = getPreprocessConfig({ anatomicalRegion, scanType });
+  return config.topMaskRatio > 0 || config.bottomMaskRatio > 0 || config.sideMaskRatio > 0;
 }
 
 /**
@@ -48,10 +62,20 @@ function getPreprocessConfig(options: PreprocessOptions): PreprocessConfig {
  *
  * Pipeline:
  * 1. Flatten (remove alpha) — black background
- * 2. Black-fill top/bottom 12% — removes patient info, timestamps, probe data
- * 3. Normalize — auto-levels contrast enhancement
- * 4. Resize — max 1024px on longest side, maintain aspect ratio
+ * 2. Resize — max 1024px on longest side, proportional (no letterboxing)
+ * 3. Black-fill top/bottom/side strips — removes patient info, timestamps, probe data
+ * 4. Normalize — auto-levels contrast enhancement
  * 5. Export as PNG buffer
+ *
+ * WHY RESIZE BEFORE BLACK-FILL?
+ * sharp applies resize before composite internally, so composites must be
+ * sized to the output dimensions, not the original. Materializing the
+ * resized buffer first lets us compute correct strip dimensions.
+ *
+ * WHY 'inside' FIT (not 'contain')?
+ * 'inside' resizes proportionally without adding black letterbox padding.
+ * This preserves the original aspect ratio in the output dimensions so
+ * vision analysis coordinates match exactly what the model receives.
  *
  * WHY BLACK-FILL (not transparent)?
  * gpt-image-1 interprets transparent/alpha regions as "areas to inpaint".
@@ -67,12 +91,25 @@ export async function preprocessUltrasound(
   inputBuffer: Buffer,
   options: PreprocessOptions = {},
 ): Promise<Buffer> {
-  const image = sharp(inputBuffer);
-  const metadata = await image.metadata();
-  const width = metadata.width ?? 1024;
-  const height = metadata.height ?? 1024;
   const config = getPreprocessConfig(options);
 
+  // Step 1: Flatten alpha and resize proportionally (no letterboxing)
+  const resizedBuffer = await sharp(inputBuffer)
+    .flatten({ background: { r: 0, g: 0, b: 0 } })
+    .resize(1024, 1024, {
+      fit: 'inside',
+      background: { r: 0, g: 0, b: 0 },
+      withoutEnlargement: true,
+    })
+    .png()
+    .toBuffer();
+
+  // Step 2: Read actual output dimensions (needed for correct strip sizing)
+  const resizedMeta = await sharp(resizedBuffer).metadata();
+  const width = resizedMeta.width ?? 1024;
+  const height = resizedMeta.height ?? 1024;
+
+  // Step 3: Compute and composite black mask strips
   const topMaskHeight = Math.max(1, Math.floor(height * config.topMaskRatio));
   const bottomMaskHeight = Math.max(1, Math.floor(height * config.bottomMaskRatio));
   const sideMaskWidth = Math.max(0, Math.floor(width * config.sideMaskRatio));
@@ -139,22 +176,14 @@ export async function preprocessUltrasound(
     );
   }
 
-  let pipeline = image
-    .flatten({ background: { r: 0, g: 0, b: 0 } }) // remove alpha channel
-    .composite(composites);
+  // Step 4: Apply composites and normalize
+  let pipeline = sharp(resizedBuffer).composite(composites);
 
   if (config.normalize) {
     pipeline = pipeline.normalize(); // auto-levels contrast enhancement
   }
 
-  return pipeline
-    .resize(1024, 1024, {
-      fit: 'contain',
-      background: { r: 0, g: 0, b: 0 },
-      withoutEnlargement: true,
-    })
-    .png()
-    .toBuffer();
+  return pipeline.png().toBuffer();
 }
 
 /**
