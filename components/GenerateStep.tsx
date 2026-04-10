@@ -172,7 +172,6 @@ export default function GenerateStep({
       const generationDefaults = getGenerationDefaults(mode, anatomicalRegion);
       const formData = new FormData();
       formData.append('image', imageBlob, 'crop.jpg');
-      formData.append('style', generationDefaults.style);
       formData.append('creativity', String(generationDefaults.creativity));
       formData.append('skinTone', skinTone);
       formData.append('mode', mode);

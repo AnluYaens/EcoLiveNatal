@@ -21,14 +21,12 @@ describe('generationProfiles', () => {
 
   it('returns portrait defaults for face portrait mode', () => {
     expect(getGenerationDefaults('portrait', 'face')).toEqual({
-      style: 'ultra',
       creativity: 15,
     });
   });
 
   it('falls back to the preferred mode when an invalid mode-region combination is requested', () => {
     expect(getGenerationDefaults('portrait', 'heart')).toEqual({
-      style: 'ultra',
       creativity: 42,
     });
   });

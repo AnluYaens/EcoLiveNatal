@@ -4,8 +4,6 @@ export const ANATOMICAL_REGIONS = ['face', 'heart', 'brain', 'spine', 'abdomen',
 export type AnatomicalRegion = (typeof ANATOMICAL_REGIONS)[number];
 export const GENERATION_MODES = ['portrait', 'realistic'] as const;
 export type GenerationMode = (typeof GENERATION_MODES)[number];
-export const GENERATION_STYLES = ['soft', 'ultra', 'cinematic'] as const;
-export type GenerationStyle = (typeof GENERATION_STYLES)[number];
 export const SKIN_TONES = ['normal', 'moreno'] as const;
 export type SkinTone = (typeof SKIN_TONES)[number];
 export const SCAN_TYPES = ['3d4d', '2d'] as const;
@@ -44,7 +42,6 @@ export function isPreferredScanTypeForRegion(
 }
 
 export const GenerateSchema = z.object({
-  style: z.enum(GENERATION_STYLES),
   creativity: z.number().min(0).max(100),
   skinTone: z.enum(SKIN_TONES).default('normal'),
   mode: z.enum(GENERATION_MODES).default('portrait'),

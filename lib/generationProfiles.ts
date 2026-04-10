@@ -3,13 +3,11 @@ import {
   REGION_PREFERRED_SCAN_TYPE,
   isModeAllowedForRegion,
   type AnatomicalRegion,
-  type GenerationStyle,
   type GenerationMode,
   type ScanType,
 } from './validation';
 
 interface GenerationDefaults {
-  readonly style: GenerationStyle;
   readonly creativity: number;
 }
 
@@ -46,8 +44,8 @@ const REGION_PROFILES: Readonly<Record<AnatomicalRegion, RegionProfile>> = {
       subTipKey: 'guidanceFaceSubTip',
     },
     generationDefaults: {
-      portrait: { style: 'ultra', creativity: 15 },
-      realistic: { style: 'ultra', creativity: 35 },
+      portrait: { creativity:15 },
+      realistic: { creativity:35 },
     },
   },
   heart: {
@@ -60,7 +58,7 @@ const REGION_PROFILES: Readonly<Record<AnatomicalRegion, RegionProfile>> = {
       subTipKey: 'guidanceHeartSubTip',
     },
     generationDefaults: {
-      realistic: { style: 'ultra', creativity: 42 },
+      realistic: { creativity:42 },
     },
   },
   brain: {
@@ -73,7 +71,7 @@ const REGION_PROFILES: Readonly<Record<AnatomicalRegion, RegionProfile>> = {
       subTipKey: 'guidanceBrainSubTip',
     },
     generationDefaults: {
-      realistic: { style: 'ultra', creativity: 40 },
+      realistic: { creativity:40 },
     },
   },
   spine: {
@@ -86,7 +84,7 @@ const REGION_PROFILES: Readonly<Record<AnatomicalRegion, RegionProfile>> = {
       subTipKey: 'guidanceSpineSubTip',
     },
     generationDefaults: {
-      realistic: { style: 'ultra', creativity: 38 },
+      realistic: { creativity:38 },
     },
   },
   abdomen: {
@@ -99,7 +97,7 @@ const REGION_PROFILES: Readonly<Record<AnatomicalRegion, RegionProfile>> = {
       subTipKey: 'guidanceAbdomenSubTip',
     },
     generationDefaults: {
-      realistic: { style: 'ultra', creativity: 40 },
+      realistic: { creativity:40 },
     },
   },
   fullBody: {
@@ -112,8 +110,8 @@ const REGION_PROFILES: Readonly<Record<AnatomicalRegion, RegionProfile>> = {
       subTipKey: 'guidanceFullBodySubTip',
     },
     generationDefaults: {
-      portrait: { style: 'ultra', creativity: 25 },
-      realistic: { style: 'ultra', creativity: 45 },
+      portrait: { creativity:25 },
+      realistic: { creativity:45 },
     },
   },
 };
