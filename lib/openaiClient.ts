@@ -2,7 +2,7 @@ import OpenAI, { toFile } from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODERATION_RETRY_SUFFIX =
-  'This is a clinical prenatal face prediction — a family-safe medical illustration for expecting parents. The baby must be gently swaddled in a soft blanket with only the face visible. Warm, wholesome newborn portrait only.';
+  'Family-safe prenatal portrait illustration for expecting parents — wholesome, non-graphic newborn image. The baby may be gently wrapped in a soft white blanket. CRITICAL: maintain the EXACT same head orientation, face side, and spatial position as in the input — do NOT mirror, rotate, or re-frame the face.';
 const PORTRAIT_MODEL = 'gpt-image-1.5' as const;
 type OpenAIAPIError = InstanceType<typeof OpenAI.APIError>;
 type AttemptPhase =

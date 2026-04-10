@@ -11,116 +11,106 @@ import {
 
 describe('buildPrompt', () => {
   describe('base prompt', () => {
-    it('always includes the base ultrasound-to-portrait instruction', () => {
-      const result = buildPrompt('soft', 50);
-      expect(result).toContain('texture swap, not a new portrait');
+    it('uses BLOCK A / BLOCK B structure', () => {
+      const result = buildPrompt(50);
+      expect(result).toContain('BLOCK A');
+      expect(result).toContain('BLOCK B');
+      expect(result).toContain('PRESERVE EXACTLY');
+      expect(result).toContain('ALLOWED IMPROVEMENTS');
+    });
+
+    it('includes CONTENT CLASSIFICATION and texture translation intro', () => {
+      const result = buildPrompt(50);
+      expect(result).toContain('CONTENT CLASSIFICATION');
       expect(result).toContain('photorealistic newborn skin');
+      expect(result).toContain('faithful texture translation, not a recomposed portrait');
     });
 
-    it('always includes the likeness requirement', () => {
-      const result = buildPrompt('ultra', 50);
-      expect(result).toContain("Preserve THIS baby's specific facial features exactly as they appear");
+    it('locks facing direction as FIXED in BLOCK A', () => {
+      const result = buildPrompt(50);
+      expect(result).toContain('This is FIXED. Do NOT mirror, flip, or reverse.');
+      expect(result).toContain('Anti-mirror rule');
     });
 
-    it('always includes the safety framing and coverage requirement', () => {
-      const result = buildPrompt('cinematic', 50);
-      expect(result).toContain('Hard constraints: treat the crop as a fixed frame.');
-      expect(result).toContain('Family-safe close-up.');
+    it('enforces crop boundary in BLOCK A', () => {
+      const result = buildPrompt(50);
+      expect(result).toContain('treat the source frame as a hard boundary. Do NOT recenter. Do NOT zoom out.');
     });
 
-    it('keeps portrait prompts focused on a specific baby instead of a medical illustration disclaimer', () => {
-      const result = buildPrompt('ultra', 50);
-      expect(result).toContain("THIS baby's specific facial features");
+    it('uses generic facing and chin when no analysis is provided', () => {
+      const result = buildPrompt(50);
+      expect(result).toContain('preserve-as-is');
+      expect(result).toContain('[source: generic]');
+    });
+
+    it('falls back to general realism in BLOCK B when no analysis', () => {
+      const result = buildPrompt(50);
+      expect(result).toContain('Improve general realism only. No feature-specific guidance available.');
+    });
+
+    it('includes Realistic newborn skin in BLOCK B', () => {
+      const result = buildPrompt(50);
+      expect(result).toContain('Realistic newborn skin');
+    });
+
+    it('does not use the medical-illustration disclaimer', () => {
+      const result = buildPrompt(50);
       expect(result).not.toContain('No human subjects depicted as people');
-    });
-
-    it('preserves visible hands around the face without introducing dark-background instructions', () => {
-      const result = buildPrompt('ultra', 50);
-      expect(result).toContain('If a hand or arm is visible near the face, keep it at the same position.');
-      expect(result).not.toContain('dark studio backdrop');
-      expect(result).not.toContain('neutral or dark background');
-      expect(result).toContain('Do NOT symmetrize, beautify, or idealize facial proportions.');
-      expect(result).toContain('Family-safe close-up.');
-    });
-
-    it('forbids black bands and does not instruct preservation of occlusion', () => {
-      const result = buildPrompt('ultra', 50);
-      expect(result).toContain('preprocessing artifacts');
-      expect(result).toContain('Do NOT extend, stretch, or enlarge');
-      expect(result).not.toContain('preserve that same occlusion');
-    });
-  });
-
-  describe('style modifiers', () => {
-    it('includes soft style modifier', () => {
-      const result = buildPrompt('soft', 50);
-      expect(result).toContain('soft natural lighting');
-    });
-
-    it('includes ultra style modifier', () => {
-      const result = buildPrompt('ultra', 50);
-      expect(result).toContain('ultra-realistic details');
-    });
-
-    it('includes cinematic style modifier', () => {
-      const result = buildPrompt('cinematic', 50);
-      expect(result).toContain('cinematic lighting');
     });
   });
 
   describe('creativity modifiers', () => {
     it('uses strict mode for creativity <= 30', () => {
-      expect(buildPrompt('soft', 0)).toContain('Strict mode');
-      expect(buildPrompt('soft', 30)).toContain('Strict mode');
+      expect(buildPrompt(0)).toContain('Strict mode');
+      expect(buildPrompt(30)).toContain('Strict mode');
     });
 
     it('uses balanced mode for creativity 31–70', () => {
-      expect(buildPrompt('soft', 31)).toContain('Balanced mode');
-      expect(buildPrompt('soft', 50)).toContain('Balanced mode');
-      expect(buildPrompt('soft', 70)).toContain('Balanced mode');
+      expect(buildPrompt(31)).toContain('Balanced mode');
+      expect(buildPrompt(50)).toContain('Balanced mode');
+      expect(buildPrompt(70)).toContain('Balanced mode');
     });
 
     it('uses high mode for creativity >= 71', () => {
-      expect(buildPrompt('soft', 71)).toContain('High mode');
-      expect(buildPrompt('soft', 100)).toContain('High mode');
+      expect(buildPrompt(71)).toContain('High mode');
+      expect(buildPrompt(100)).toContain('High mode');
     });
   });
 
   describe('skin tone', () => {
     it('includes moreno skin tone modifier when skinTone is moreno', () => {
-      const result = buildPrompt('soft', 50, 'moreno');
+      const result = buildPrompt(50, 'moreno');
       expect(result).toContain('Skin tone requirement');
       expect(result).toContain('warm brown skin');
     });
 
     it('does NOT include skin tone modifier when skinTone is normal', () => {
-      const result = buildPrompt('soft', 50, 'normal');
+      const result = buildPrompt(50, 'normal');
       expect(result).not.toContain('Skin tone requirement');
     });
 
     it('defaults to normal skin tone (no modifier) when skinTone is omitted', () => {
-      const result = buildPrompt('soft', 50);
+      const result = buildPrompt(50);
       expect(result).not.toContain('Skin tone requirement');
     });
   });
 
   describe('output structure', () => {
     it('joins sections with double newlines', () => {
-      const result = buildPrompt('soft', 50, 'moreno');
+      const result = buildPrompt(50, 'moreno');
       expect(result).toContain('\n\n');
     });
 
     it('does not include null or undefined in output', () => {
-      const result = buildPrompt('soft', 50, 'normal');
+      const result = buildPrompt(50, 'normal');
       expect(result).not.toContain('null');
       expect(result).not.toContain('undefined');
     });
   });
 
   describe('enhanced portrait prompt', () => {
-    it('uses face analysis details without reintroducing the medical-illustration disclaimer', () => {
+    it('emits BLOCK A with coordinate-derived facing and BLOCK B with specific baby features', () => {
       const result = buildEnhancedPrompt(
-        'ultra',
         50,
         'normal',
         'portrait',
@@ -162,17 +152,24 @@ describe('buildPrompt', () => {
         },
       );
 
-      expect(result).toContain('VISION ANALYSIS');
-      expect(result).toContain("Reproduce THIS baby's specific features exactly as analyzed above.");
-      expect(result).not.toContain('No human subjects depicted as people');
-      expect(result).toContain('Treat the crop as a fixed frame');
-      expect(result).toContain('Family-safe close-up.');
+      // BLOCK A structure
+      expect(result).toContain('BLOCK A');
+      expect(result).toContain('PRESERVE EXACTLY');
+      // coordinate-derived facing
+      expect(result).toContain('facing-left');
+      expect(result).toContain('[source: coordinates]');
+      // landmark note since coords were used
+      expect(result).toContain('Landmark geometry is derived from spatial analysis');
+      // BLOCK B structure
+      expect(result).toContain('BLOCK B');
+      expect(result).toContain('THIS SPECIFIC BABY\'S FEATURES');
       expect(result).toContain('Realistic newborn skin');
+      // does not use medical-illustration disclaimer
+      expect(result).not.toContain('No human subjects depicted as people');
     });
 
-    it('includes spatial anchor data with coordinates when spatialLayout is present', () => {
+    it('uses coordinate-derived facing-right and includes landmark note when coordinates are used', () => {
       const result = buildEnhancedPrompt(
-        'ultra',
         50,
         'normal',
         'portrait',
@@ -214,19 +211,18 @@ describe('buildPrompt', () => {
         },
       );
 
-      expect(result).toContain('SPATIAL ANCHOR DATA');
-      expect(result).toContain('(0.60, 0.40)');
-      expect(result).toContain('15°');
+      expect(result).toContain('BLOCK A');
       expect(result).toContain('facing-right');
-      expect(result).toContain('Nose tip at: (0.72, 0.45)');
-      expect(result).toContain('Chin at: (0.65, 0.65)');
-      expect(result).toContain('Forehead top at: (0.55, 0.20)');
-      expect(result).toContain('70%');
+      expect(result).toContain('[source: coordinates]');
+      expect(result).toContain('Landmark geometry is derived from spatial analysis');
+      // head tilt comes through as human-readable
+      expect(result).toContain('15°');
+      // view angle human-readable
+      expect(result).toContain('three-quarter view from the right');
     });
 
-    it('works without spatialLayout (backward compatible)', () => {
+    it('works without spatialLayout — uses generic pose preservation', () => {
       const result = buildEnhancedPrompt(
-        'ultra',
         50,
         'normal',
         'portrait',
@@ -254,8 +250,14 @@ describe('buildPrompt', () => {
         },
       );
 
-      expect(result).not.toContain('SPATIAL ANCHOR DATA');
-      expect(result).toContain('VISION ANALYSIS');
+      expect(result).toContain('BLOCK A');
+      expect(result).toContain('preserve-as-is');
+      expect(result).toContain('[source: generic]');
+      // no landmark note since no coordinates were available
+      expect(result).not.toContain('Landmark geometry is derived from spatial analysis');
+      // still has baby features in BLOCK B
+      expect(result).toContain('THIS SPECIFIC BABY\'S FEATURES');
+      // creativity modifier is still included
       expect(result).toContain('Strictly maintain the anatomical geometry of the original input image.');
     });
   });
@@ -263,7 +265,6 @@ describe('buildPrompt', () => {
   describe('enhanced realistic prompt', () => {
     it('uses organ confidence and overlay interference as hard constraints', () => {
       const result = buildEnhancedPrompt(
-        'ultra',
         45,
         'normal',
         'realistic',
@@ -345,7 +346,6 @@ describe('buildPrompt', () => {
       expect(result).toContain('Conservative mode: because confidence is medium and overlay interference is moderate');
       expect(result).toContain('Do NOT present this as a dissected specimen');
       expect(result).toContain('do NOT render a clean dissected-heart appearance');
-      expect(result).toContain('preserve those blobs as localized soft tissue masses');
       expect(result).toContain('dotted or faint circular measurement guide');
       expect(result).toContain('Never interpret it as septum, vessel wall, or tissue plane');
       expect(result).toContain('Do NOT create concentric rings, donut-like chambers');

@@ -1,22 +1,12 @@
 import type {
   AnatomicalRegion,
   GenerationMode,
-  GenerationStyle,
   ScanType,
   SkinTone,
 } from "./validation";
 import type { UltrasoundAnalysis } from "./visionAnalysis";
 
-export type Style = GenerationStyle;
 export type { AnatomicalRegion, GenerationMode, ScanType, SkinTone };
-
-const styleModifiers: Record<Style, string> = {
-  soft: "Style preference: soft natural lighting and gentle tones, while preserving the exact original geometry.",
-  ultra:
-    "Style preference: ultra-realistic details and natural skin texture, while preserving the exact original geometry.",
-  cinematic:
-    "Style preference: cinematic lighting kept subtle, while preserving the exact original geometry.",
-};
 
 function creativityModifier(creativity: number): string {
   let modeDesc = "";
@@ -41,7 +31,7 @@ function scanTypeDescription(scanType: ScanType): string {
 
 const regionScanSubject: Record<AnatomicalRegion, string> = {
   face: "showing a fetal face",
-  heart: "showing an amorphous biological tissue cross-section",
+  heart: "showing a partial fetal cardiac ultrasound slice",
   brain: "showing an amorphous biological tissue cross-section",
   spine: "showing an amorphous biological tissue cross-section",
   abdomen: "showing an amorphous biological tissue cross-section",
@@ -64,19 +54,15 @@ function joinPromptSections(
     .join("\n\n");
 }
 
-function buildPortraitPrompt(
-  style: Style,
+function buildFullBodyPortraitPrompt(
   creativity: number,
   skinTone: SkinTone,
   scanType: ScanType,
   clinicalNotes: string,
-  anatomicalRegion: AnatomicalRegion = "face",
 ): string {
   const scanDesc = scanTypeDescription(scanType);
 
-  const base =
-    anatomicalRegion === "fullBody"
-      ? `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
+  const base = `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
 
 The input image is ${scanDesc} showing the full fetal body. Transform this medical scan into an ultra-realistic newborn portrait photograph of THIS SPECIFIC baby — a full-body shot in portrait orientation.
 
@@ -94,25 +80,7 @@ Skin texture: real newborn skin with fine peach fuzz, tiny pores visible at clos
 
 Quality requirements: individually defined fingers and toes (no fused or webbed digits), anatomically correct proportions for gestational age, realistic newborn skin imperfections (milia, stork bites acceptable). ZERO plastic or waxy skin, ZERO doll-like eyes, ZERO uncanny valley smoothness, ZERO extra limbs or fingers, ZERO text, ZERO logos, ZERO watermarks, ZERO medical equipment, ZERO ultrasound artifacts.
 
-Priority rule: identity and geometry come before aesthetics. If you must choose, match the specific baby's pose, proportions, and visible features instead of making the image prettier or more generic.${scanType === "2d" ? "\n\nNote: this is a 2D ultrasound with limited geometric detail. Infer 3D body structure from the visible cross-section while maintaining fidelity to what is shown. Do not invent features that are not visible." : ""}`
-      : `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal face prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
-
-Edit this image: replace the ultrasound texture with photorealistic newborn skin. Keep the EXACT same silhouette, contours, face position, head angle, tilt, and scale. Do not change the composition or framing — this is a texture swap, not a new portrait.
-
-IDENTITY FIDELITY (CRITICAL — this is the #1 priority): This must look like THIS SPECIFIC baby, not a generic newborn. Study the ultrasound carefully and reproduce:
-- The EXACT nose bridge width, nose tip shape, and nostril angle visible in the scan
-- The EXACT lip thickness, lip curvature, and mouth width
-- The EXACT chin prominence and jaw line shape
-- The EXACT forehead slope and brow ridge
-- The EXACT cheek fullness and face width-to-height ratio
-- The EXACT proportional distances between features (eye-to-nose, nose-to-lip, lip-to-chin)
-If a feature is distinctive in the ultrasound (e.g., a button nose, full lips, prominent chin, round cheeks), it MUST be distinctively the same in the output. Do NOT average or normalize features toward a generic baby face.
-
-If a hand or arm is visible near the face, keep it at the same position. Do not add body or shoulders not visible in the input.
-
-Hard constraints: treat the crop as a fixed frame. Do NOT center the face if it is off-center. Do NOT rotate the head upright. Do NOT symmetrize, beautify, or idealize facial proportions. Do NOT extend, stretch, or enlarge the baby's head or body to fill empty or dark areas — the baby must occupy the SAME proportion and position in the frame as in the input. Any solid black horizontal or vertical bands at the edges are preprocessing artifacts: replace them with plain background, NOT with extended anatomy.
-
-Skin: realistic newborn with peach fuzz, pores, natural color variation. Light cream background. Family-safe close-up. No text, no logos, no medical equipment.${scanType === "2d" ? " 2D ultrasound — infer 3D structure from visible cross-section." : ""}`;
+Priority rule: identity and geometry come before aesthetics. If you must choose, match the specific baby's pose, proportions, and visible features instead of making the image prettier or more generic.${scanType === "2d" ? "\n\nNote: this is a 2D ultrasound with limited geometric detail. Infer 3D body structure from the visible cross-section while maintaining fidelity to what is shown. Do not invent features that are not visible." : ""}`;
 
   const skinToneModifier =
     skinTone === "moreno"
@@ -123,7 +91,7 @@ Skin: realistic newborn with peach fuzz, pores, natural color variation. Light c
     base,
     buildClinicalNotesBlock(clinicalNotes),
     skinToneModifier,
-    styleModifiers[style],
+    "Style preference: ultra-realistic details and natural skin texture, while preserving the exact original geometry.",
     creativityModifier(creativity),
   ]
     .filter(Boolean)
@@ -133,9 +101,11 @@ Skin: realistic newborn with peach fuzz, pores, natural color variation. Light c
 const realisticRegionDetails: Record<AnatomicalRegion, string> = {
   face: `This scan shows fetal facial anatomy. Transform it into a photorealistic HDlive-style 3D rendering preserving the EXACT same view angle and spatial layout as the input scan (profile, frontal, or 3/4). Every facial feature must occupy the same position as in the ultrasound. Warm peach/amber skin tones, soft translucent tissue revealing underlying structure. Render skin surface, subcutaneous fat, nasal cartilage, orbital structures, lips and chin with depth.`,
 
-  heart: `Edit this image: replace the ultrasound texture with photorealistic OPAQUE fetal tissue in GE Voluson HDlive style. Keep the EXACT same cross-sectional shape, composition, and spatial layout as the input. This is a texture swap, not a new illustration.
+  heart: `Edit this image: replace the ultrasound texture with photorealistic OPAQUE fetal cardiac tissue in GE Voluson HDlive style. Keep the EXACT same cross-sectional shape, composition, and spatial layout as the input. This is a texture swap of a partial fetal echo slice, not a new illustration.
 
-Ignore any yellow measurement text or crosshairs. All tissue must be SOLID and OPAQUE. Cardiac chambers are deep dark open cavities, myocardium is solid rose-pink with muscular striations, lungs are solid opaque amber with spongy texture, chest wall is solid warm amber, spine is solid ivory bone. Warm HDlive 3D directional lighting with depth and specular highlights. NO TEXT, no labels, no annotations. Do NOT turn black gaps, black bands, or masked regions into tissue boundaries or anatomical structures. Areas from removed overlays or preprocessing masks must remain as absent background, not become muscle or chamber walls.`,
+Ignore yellow measurement text, crosshairs, and overlay remnants. Preserve only the cardiac structures that are actually supported by the scan. Chambers remain dark open cavities, myocardium remains solid rose-pink with restrained muscular texture, and uncertain boundaries stay incomplete or visually ambiguous instead of being repaired.
+
+Do NOT turn this into a generic textbook thoracic cross-section. Do NOT add lungs, ribs, chest wall, spine, or surrounding anatomy unless they are clearly visible in the scan. Do NOT turn black gaps, black bands, or masked regions into tissue boundaries or anatomical structures. Areas from removed overlays or preprocessing masks must remain absent background, not become muscle or chamber walls. NO TEXT, no labels, no annotations.`,
 
   brain: `This scan shows fetal intracranial anatomy.
 
@@ -226,6 +196,24 @@ Colors: warm amber/golden soft tissue, near-black fluid for hollow organs, warm 
   fullBody: `A high-resolution, ultra-realistic medical visualization macro photograph of a complete fetal body, derived from the input image. The output image must have the EXACT same dimensions, framing, composition, and aspect ratio as the input — do not crop, zoom, pad, or reframe. The granular ultrasound texture is entirely replaced with detailed, lifelike tissue textures. The fetus is shown with warm translucent amber/peach skin revealing the skeletal system (spine, ribs, skull, limbs) and major organs underneath. Direct image translation via texture mapping. DO NOT hallucinate or infer missing anatomy. DO NOT center or normalize the layout. Treat the input image as a strict mask. Wherever you see granular ultrasound pixels, apply a photorealistic biomedical tissue texture. Preserve the EXACT asymmetrical shapes, blobs, and positions of the input image. If the spine or a specific organ is lateral in the input, KEEP it lateral. Do not attempt to draw a standard textbook anatomical frontal/coronal view. The overall scene is clean, detailed, and photorealistic.`,
 };
 
+function buildGeminiFaceAnchorBlock(analysis: UltrasoundAnalysis): string {
+  const lock = getSpatialLock(analysis);
+  const lines = [
+    `POSE LOCK (highest priority):`,
+    `- Facing direction: ${lock.facing}  [source: ${lock.facingSource}] — do NOT mirror or flip`,
+    `- Head tilt: ${lock.headTiltDesc}`,
+    `- View: ${lock.viewAngle} — render from the same side, not the mirror`,
+    `- Crop: treat the source frame as a hard boundary. Do NOT recenter. Do NOT zoom out.`,
+  ];
+  if (lock.chinSource !== 'generic' && lock.chinElevDeg !== null) {
+    lines.splice(2, 0, `- Chin elevation: ${lock.chinElevDeg}° → chin ${lock.chinBucket}  [source: ${lock.chinSource}]`);
+  }
+  if (lock.facingSource === 'coordinates' || lock.chinSource === 'coordinates') {
+    lines.push(`- Landmark geometry is derived from spatial analysis — use as structural guidance, not a pixel-accurate target.`);
+  }
+  return lines.join('\n');
+}
+
 export function buildGeminiPrompt(
   anatomicalRegion: AnatomicalRegion,
   scanType: ScanType,
@@ -240,12 +228,16 @@ export function buildGeminiPrompt(
   const clinicalBlock = buildClinicalNotesBlock(clinicalNotes);
   const anchorBlock =
     analysis && anatomicalRegion === "face"
-      ? buildSpatialAnchorBlock(analysis)
+      ? buildGeminiFaceAnchorBlock(analysis)
       : analysis && anatomicalRegion !== "face"
         ? buildGeminiOrganAnchorBlock(anatomicalRegion, analysis)
         : null;
 
-  return joinPromptSections(regionPrompt + scanNote, anchorBlock, clinicalBlock);
+  return joinPromptSections(
+    regionPrompt + scanNote,
+    anchorBlock,
+    clinicalBlock,
+  );
 }
 
 function buildRealisticPromptBase(
@@ -307,7 +299,6 @@ function buildRealisticPrompt(
 }
 
 export function buildPrompt(
-  style: Style,
   creativity: number,
   skinTone: SkinTone = "normal",
   mode: GenerationMode = "portrait",
@@ -315,7 +306,6 @@ export function buildPrompt(
   anatomicalRegion: AnatomicalRegion = "face",
   clinicalNotes: string = "",
 ): string {
-  // Portrait mode is valid for face and fullBody regions
   const portraitRegions: AnatomicalRegion[] = ["face", "fullBody"];
   if (mode === "realistic" || !portraitRegions.includes(anatomicalRegion)) {
     return buildRealisticPrompt(
@@ -326,120 +316,303 @@ export function buildPrompt(
       clinicalNotes,
     );
   }
-  return buildPortraitPrompt(
-    style,
-    creativity,
-    skinTone,
-    scanType,
-    clinicalNotes,
-    anatomicalRegion,
-  );
+  if (anatomicalRegion === "fullBody") {
+    return buildFullBodyPortraitPrompt(creativity, skinTone, scanType, clinicalNotes);
+  }
+  return buildFacePortraitPrompt({ creativity, skinTone, scanType, clinicalNotes }, null);
 }
 
 // ---------- Enhanced prompt (with vision analysis) ----------
 
-function buildSpatialAnchorBlock(analysis: UltrasoundAnalysis): string {
-  const sl = analysis.spatialLayout;
-  if (!sl) return "";
+// ---------- Face portrait: strict pose lock ----------
 
-  const tiltDirection =
-    sl.headTiltDegrees > 5
-      ? "tilted clockwise (right ear down)"
-      : sl.headTiltDegrees < -5
-        ? "tilted counter-clockwise (left ear down)"
-        : "approximately upright";
+type FacingValue = 'facing-left' | 'facing-right' | 'facing-camera' | 'preserve-as-is';
+type ChinBucket = 'raised' | 'level' | 'tucked';
+type DataSource = 'coordinates' | 'label' | 'generic';
+type LabelSource = 'label' | 'generic';
 
-  const chinElevation =
-    sl.chinElevationDegrees > 5
-      ? "looking UPWARD (chin raised)"
-      : sl.chinElevationDegrees < -5
-        ? "looking DOWNWARD (chin tucked)"
-        : "looking straight ahead (level)";
+type SpatialLock = {
+  facing: FacingValue;
+  facingSource: DataSource;
+  chinElevDeg: number | null;
+  chinBucket: ChinBucket;
+  chinSource: DataSource;
+  viewAngle: string;
+  viewAngleSource: LabelSource;
+  headTiltDeg: number | null;
+  headTiltDesc: string;
+  headTiltSource: LabelSource;
+  faceCenter: { x: number; y: number } | null;  // letterbox-corrected 0–1
+  faceCenterSource: 'coordinates' | 'generic';
+  occupancyPercent: number | null;               // letterbox-corrected %, null when no coords
+  handLock: string | null;                       // spatial hand constraint or null
+  facingDesc: string;                            // explicit geometric description, no convention ambiguity
+};
 
-  const horizontalPos =
-    sl.subjectCenterX < 0.35
-      ? "left third"
-      : sl.subjectCenterX > 0.65
-        ? "right third"
-        : sl.subjectCenterX < 0.45
-          ? "left-of-center"
-          : sl.subjectCenterX > 0.55
-            ? "right-of-center"
-            : "center";
+export type LetterboxGeometry = {
+  proportionalW: number;  // width of pre-letterbox proportional image in px
+  proportionalH: number;  // height of pre-letterbox proportional image in px
+  // canvas is always 1024×1024 for the OpenAI path
+};
 
-  const verticalPos =
-    sl.subjectCenterY < 0.35
-      ? "upper third"
-      : sl.subjectCenterY > 0.65
-        ? "lower third"
-        : "vertically centered";
+type SpatialLayoutShape = NonNullable<UltrasoundAnalysis['spatialLayout']>;
 
-  const lines: string[] = [
-    `SPATIAL ANCHOR DATA (HIGHEST PRIORITY — these coordinates define WHERE everything must be placed):`,
-    `- Face center position: (${sl.subjectCenterX.toFixed(2)}, ${sl.subjectCenterY.toFixed(2)}) → the face is in the ${horizontalPos} of the frame, ${verticalPos}`,
-    `- Head tilt: ${sl.headTiltDegrees}° → ${tiltDirection}`,
-    `- Chin elevation: ${sl.chinElevationDegrees}° → ${chinElevation}`,
-    `- Facing direction: ${sl.facingDirection}`,
-    `- Face occupies ~${Math.round(sl.subjectOccupancyPercent)}% of the frame`,
-  ];
+const FACING_THRESHOLD = 0.07;
 
-  if (sl.noseTipX !== undefined && sl.noseTipY !== undefined) {
-    lines.push(
-      `- Nose tip at: (${sl.noseTipX.toFixed(2)}, ${sl.noseTipY.toFixed(2)})`,
-    );
-  }
-  if (sl.chinX !== undefined && sl.chinY !== undefined) {
-    lines.push(`- Chin at: (${sl.chinX.toFixed(2)}, ${sl.chinY.toFixed(2)})`);
-  }
-  if (sl.foreheadX !== undefined && sl.foreheadY !== undefined) {
-    lines.push(
-      `- Forehead top at: (${sl.foreheadX.toFixed(2)}, ${sl.foreheadY.toFixed(2)})`,
-    );
-  }
-
-  lines.push("");
-  lines.push(
-    `RULE: The generated portrait MUST place the face center, nose, chin, and forehead at these EXACT same normalized coordinates. The head tilt angle of ${sl.headTiltDegrees}° MUST be preserved — do NOT straighten or rotate the head. The chin elevation of ${sl.chinElevationDegrees}° MUST be preserved — if the face is ${chinElevation}, the portrait MUST show the face ${chinElevation} at the same angle. Do NOT flip the vertical orientation. The face must occupy approximately the same ${Math.round(sl.subjectOccupancyPercent)}% of the frame. If the face is off-center in the ultrasound, it must be off-center in the portrait at the same position.`,
-  );
-
-  return lines.join("\n");
+function deriveFacingFromCoords(sl: SpatialLayoutShape): 'facing-left' | 'facing-right' | null {
+  if (sl.noseTipX === undefined || sl.foreheadX === undefined) return null;
+  const diff = sl.foreheadX - sl.noseTipX;
+  if (Math.abs(diff) < FACING_THRESHOLD) return null;
+  return diff > 0 ? 'facing-left' : 'facing-right';
 }
 
-function buildVisionFaceBlock(analysis: UltrasoundAnalysis): string {
-  const fd = analysis.faceDetails;
-  if (!fd) return "";
+function deriveChinElevFromCoords(sl: SpatialLayoutShape): number | null {
+  if (sl.noseTipY === undefined || sl.chinY === undefined || sl.foreheadY === undefined) return null;
+  const faceHeight = Math.abs(sl.chinY - sl.foreheadY);
+  if (faceHeight <= 0.05) return null;
+  const midFaceY = (sl.foreheadY + sl.chinY) / 2;
+  const raw = (-(sl.noseTipY - midFaceY) / (faceHeight / 2)) * 45;
+  return Math.round(Math.max(-45, Math.min(45, raw)));
+}
 
-  const lines: string[] = [
-    `VISION ANALYSIS — the following describes THIS specific baby as seen in the ultrasound:`,
-    `- View angle: ${analysis.viewAngle}`,
-    `- Estimated gestational age: ${analysis.estimatedGestationalWeeks ? `~${analysis.estimatedGestationalWeeks} weeks` : "unknown"}`,
-    `- Image quality: ${analysis.imageQuality}`,
-    `- Visible structures: ${analysis.visibleStructures.join(", ")}`,
-    "",
-    `SPECIFIC FACIAL FEATURES (reproduce these EXACTLY):`,
-    `- Nose: ${fd.noseDescription}`,
-    `- Lips: ${fd.lipDescription}`,
-    `- Chin: ${fd.chinDescription}`,
-    `- Forehead: ${fd.foreheadDescription}`,
-    `- Cheeks: ${fd.cheekDescription}`,
-    `- Eyes: ${fd.eyeDescription}`,
+function toChinBucket(deg: number): ChinBucket {
+  if (deg >= 12) return 'raised';
+  if (deg <= -12) return 'tucked';
+  return 'level';
+}
+
+function viewAngleToHuman(viewAngle: UltrasoundAnalysis['viewAngle']): string {
+  switch (viewAngle) {
+    case 'frontal': return 'frontal (face-on)';
+    case 'profile-left': return 'left profile';
+    case 'profile-right': return 'right profile';
+    case 'three-quarter-left': return 'three-quarter view from the left';
+    case 'three-quarter-right': return 'three-quarter view from the right';
+    default: return viewAngle;
+  }
+}
+
+function headTiltToDesc(deg: number): string {
+  if (deg > 5) return `${deg}° tilted clockwise (right ear down)`;
+  if (deg < -5) return `${Math.abs(deg)}° tilted counter-clockwise (left ear down)`;
+  return 'approximately upright (no significant tilt)';
+}
+
+function buildFacingDesc(
+  facing: FacingValue,
+  noseTipX?: number,
+  foreheadX?: number,
+): string {
+  const coordHint =
+    noseTipX !== undefined && foreheadX !== undefined
+      ? ` (Spatial evidence: nose tip at ~${Math.round(noseTipX * 100)}% from left, forehead at ~${Math.round(foreheadX * 100)}% from left in the source frame.)`
+      : '';
+  switch (facing) {
+    case 'facing-left':
+      return `Facing orientation: The face is turned LEFT from the viewer's perspective — the baby's nose points toward the LEFT edge of the frame, the baby's RIGHT cheek faces the camera, the LEFT ear and temple are turned away.${coordHint}`;
+    case 'facing-right':
+      return `Facing orientation: The face is turned RIGHT from the viewer's perspective — the baby's nose points toward the RIGHT edge of the frame, the baby's LEFT cheek faces the camera, the RIGHT ear and temple are turned away.${coordHint}`;
+    case 'facing-camera':
+      return `Facing orientation: The face is looking directly at the camera (frontal view) — both cheeks are approximately equally visible, nose pointing toward the lens.${coordHint}`;
+    default:
+      return `Facing orientation: Preserve the exact face orientation and side presentation shown in the source image — do not flip or mirror any side.`;
+  }
+}
+
+function getSpatialLock(
+  analysis: UltrasoundAnalysis | null,
+  lbGeom?: LetterboxGeometry,
+): SpatialLock {
+  const sl = analysis?.spatialLayout ?? null;
+
+  // --- facing ---
+  let facing: FacingValue = 'preserve-as-is';
+  let facingSource: DataSource = 'generic';
+  if (sl) {
+    const fromCoords = deriveFacingFromCoords(sl);
+    if (fromCoords !== null) {
+      facing = fromCoords;
+      facingSource = 'coordinates';
+    } else {
+      facing = sl.facingDirection;
+      facingSource = 'label';
+    }
+  }
+
+  // --- chin ---
+  let chinElevDeg: number | null = null;
+  let chinSource: DataSource = 'generic';
+  let chinBucket: ChinBucket = 'level';
+  if (sl) {
+    const fromCoords = deriveChinElevFromCoords(sl);
+    if (fromCoords !== null) {
+      chinElevDeg = fromCoords;
+      chinSource = 'coordinates';
+      chinBucket = toChinBucket(fromCoords);
+    } else {
+      chinElevDeg = sl.chinElevationDegrees;
+      chinSource = 'label';
+      chinBucket = toChinBucket(sl.chinElevationDegrees);
+    }
+  }
+
+  // --- view angle ---
+  let viewAngle: string;
+  let viewAngleSource: LabelSource;
+  if (analysis) {
+    viewAngle = viewAngleToHuman(analysis.viewAngle);
+    viewAngleSource = 'label';
+  } else {
+    viewAngle = 'preserve the existing viewing class as shown in the source';
+    viewAngleSource = 'generic';
+  }
+
+  // --- head tilt ---
+  let headTiltDeg: number | null = null;
+  let headTiltDesc: string;
+  let headTiltSource: LabelSource;
+  if (sl) {
+    headTiltDeg = sl.headTiltDegrees;
+    headTiltDesc = headTiltToDesc(sl.headTiltDegrees);
+    headTiltSource = 'label';
+  } else {
+    headTiltDesc = 'preserve the head tilt as shown';
+    headTiltSource = 'generic';
+  }
+
+  // --- letterbox-corrected face center and occupancy ---
+  // Vision runs on the proportional pre-letterbox image (pW × pH). The model
+  // receives a 1024×1024 padded canvas. Coordinates must be remapped so that
+  // the prompt values match what the model actually sees.
+  const CANVAS = 1024;
+  const pW = lbGeom?.proportionalW ?? CANVAS;
+  const pH = lbGeom?.proportionalH ?? CANVAS;
+  const scaleX = pW / CANVAS;
+  const scaleY = pH / CANVAS;
+  const offsetX = (1 - scaleX) / 2;
+  const offsetY = (1 - scaleY) / 2;
+
+  let faceCenter: { x: number; y: number } | null = null;
+  let faceCenterSource: 'coordinates' | 'generic' = 'generic';
+  let occupancyPercent: number | null = null;
+  if (sl) {
+    faceCenter = {
+      x: offsetX + sl.subjectCenterX * scaleX,
+      y: offsetY + sl.subjectCenterY * scaleY,
+    };
+    faceCenterSource = 'coordinates';
+    occupancyPercent = sl.subjectOccupancyPercent * scaleX * scaleY;
+  }
+
+  // --- hand spatial lock ---
+  let handLock: string | null = null;
+  if (analysis?.faceDetails?.handPosition) {
+    handLock = `${analysis.faceDetails.handPosition} — this hand MUST appear in the output at the same relative location as in the source image. Do NOT remove, relocate, or merge the hand with the face.`;
+  }
+
+  // --- explicit facing description (no convention ambiguity) ---
+  const facingDesc = buildFacingDesc(facing, sl?.noseTipX, sl?.foreheadX);
+
+  console.log('[SpatialLock]', {
+    facing, facingSource, facingDesc,
+    chinElevDeg, chinBucket, chinSource,
+    viewAngleSource, headTiltDeg, headTiltSource,
+    faceCenter, occupancyPercent: occupancyPercent?.toFixed(1), handLock: handLock ? 'yes' : 'null',
+  });
+
+  return {
+    facing, facingSource, chinElevDeg, chinBucket, chinSource,
+    viewAngle, viewAngleSource, headTiltDeg, headTiltDesc, headTiltSource,
+    faceCenter, faceCenterSource, occupancyPercent, handLock,
+    facingDesc,
+  };
+}
+
+type FacePortraitParams = {
+  creativity: number;
+  skinTone: SkinTone;
+  scanType: ScanType;
+  clinicalNotes: string;
+  lbGeom?: LetterboxGeometry;
+};
+
+function buildFacePortraitPrompt(
+  params: FacePortraitParams,
+  analysis: UltrasoundAnalysis | null,
+): string {
+  const { creativity, skinTone, scanType, clinicalNotes, lbGeom } = params;
+  const lock = getSpatialLock(analysis, lbGeom);
+
+  const intro = `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal face prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
+
+Edit this image: replace the ultrasound texture with photorealistic newborn skin. Keep the same overall silhouette, pose, and framing feel. This is a faithful texture translation, not a recomposed portrait.${scanType === "2d" ? " 2D ultrasound — use analysis descriptions to guide reconstruction." : ""}`;
+
+  const blockALines = [
+    `══ BLOCK A — PRESERVE EXACTLY ══`,
+    ``,
+    `Orientation: Read the face direction, pose, and side presentation directly from the source image. Preserve them exactly. Do NOT flip, mirror, rotate, or recompose. If the face is turned to one side in the source, keep it turned to the same side in the output.`,
+    ``,
+    `Scale: Do NOT zoom in. Do NOT enlarge the face to fill the frame. Maintain the same head size relative to the frame as in the source image.`,
+    ``,
+    `Position: Do NOT recenter the subject. The face should occupy the same area of the frame as in the source.`,
+    ``,
+    `Crop: Treat the source frame as a hard boundary. Do NOT zoom out to reveal anatomy not visible in the crop.`,
   ];
 
-  if (fd.handPosition) {
-    lines.push(`- Hand position: ${fd.handPosition}`);
-  }
-  if (fd.earVisible) {
-    lines.push(`- Ear: visible`);
-  }
-  if (fd.hairVisible) {
-    lines.push(`- Hair: visible`);
+  if (lock.handLock) {
+    blockALines.push(
+      ``,
+      `Hand/arm constraint: ${lock.handLock}`,
+      `→ SPATIAL CONSTRAINT (not cosmetic). The hand must remain at its original position relative to the face. If it occludes the chin or cheek in the source, it occludes in the output.`,
+    );
   }
 
-  lines.push(`- Expression: ${fd.expression}`);
-  lines.push("");
-  lines.push(`Overall: ${analysis.overallDescription}`);
+  blockALines.push(
+    ``,
+    `FINAL RULE: Scale, position, crop, and any hand constraint above are authoritative structural constraints from the source reference. Do not override them. For face orientation, direction, and side presentation, read the source image directly — do not invent or recompose.`,
+  );
+  const blockA = blockALines.join('\n');
 
-  return lines.join("\n");
+  const fd = analysis?.faceDetails;
+  const featureBlock = fd
+    ? [
+        `THIS SPECIFIC BABY'S FEATURES (reproduce faithfully):`,
+        `- Nose: ${fd.noseDescription}`,
+        `- Lips: ${fd.lipDescription}`,
+        `- Chin: ${fd.chinDescription}`,
+        `- Forehead: ${fd.foreheadDescription}`,
+        `- Cheeks: ${fd.cheekDescription}`,
+        `- Eyes: ${fd.eyeDescription}`,
+        `- Expression: ${fd.expression}`,
+        `Overall: ${analysis?.overallDescription ?? ''}`,
+      ].join('\n')
+    : `Improve general realism only. No feature-specific guidance available.`;
+
+  const blockB = [
+    `══ BLOCK B — ALLOWED IMPROVEMENTS ══`,
+    ``,
+    `Improve realism without altering orientation, side presentation, chin angle, crop, or identity-defining facial structure (nose character, chin shape, forehead slope, cheek volume, lip shape).`,
+    ``,
+    `- Realistic newborn skin: peach fuzz, fine pores, natural tonal variation`,
+    `- Soft natural lighting`,
+    `- Anatomically plausible soft tissue rendering`,
+    ``,
+    featureBlock,
+  ].join('\n');
+
+  const skinToneModifier =
+    skinTone === 'moreno'
+      ? 'Skin tone requirement: the newborn has warm brown skin with a naturally dark complexion. Render the skin tone accurately: rich melanin, warm undertones, darker coloring consistent with a moreno infant.'
+      : null;
+
+  return joinPromptSections(
+    intro,
+    blockA,
+    blockB,
+    buildClinicalNotesBlock(clinicalNotes),
+    skinToneModifier,
+    creativityModifier(creativity),
+  );
 }
 
 function buildVisionOrganBlock(analysis: UltrasoundAnalysis): string {
@@ -558,7 +731,7 @@ function buildGeminiOrganAnchorBlock(
       lines.push(
         `- Conservative mode: because confidence is ${organDetails.anatomyConfidence} and overlay interference is ${organDetails.overlayInterference}, do NOT complete a full thoracic ring or textbook four-chamber diagram. Stay close to the visible grayscale geometry and keep uncertain tissue soft and unresolved.`,
         `- Conservative mode: do NOT render a clean dissected-heart appearance. Keep the output as a restrained translation of the exact ultrasound silhouette, preserving partial walls, broken contours, and ambiguous cavities.`,
-        `- Conservative mode: where the scan shows amorphous dark/bright blobs rather than clear anatomy, preserve those blobs as localized soft tissue masses instead of forcing named chambers or vessels.`,
+        `- Conservative mode: where the scan shows unresolved dark/bright blobs rather than crisp anatomy, preserve that ambiguity locally instead of forcing a repaired chamber, vessel, or wall.`,
         `- Conservative mode: if a dotted or faint circular measurement guide is present, ignore it completely. Never turn that guide into a circular myocardial wall, enclosing ring, or donut-shaped chamber.`,
         `- Conservative mode: if a black horizontal band or masked gap is present, treat it as removed overlay/background only. Never interpret it as septum, vessel wall, or tissue plane.`,
       );
@@ -568,50 +741,6 @@ function buildGeminiOrganAnchorBlock(
   return lines.join("\n");
 }
 
-function buildEnhancedPortraitPrompt(
-  style: Style,
-  creativity: number,
-  skinTone: SkinTone,
-  scanType: ScanType,
-  clinicalNotes: string,
-  analysis: UltrasoundAnalysis,
-): string {
-  const spatialBlock = buildSpatialAnchorBlock(analysis);
-  const visionBlock = buildVisionFaceBlock(analysis);
-  const viewAngleInstruction =
-    analysis.viewAngle === "frontal"
-      ? "render a frontal view"
-      : analysis.viewAngle.includes("profile")
-        ? "render a profile view from the same side"
-        : "render a 3/4 view from the same side";
-
-  const base = `CONTENT CLASSIFICATION: This is a clinical prenatal-to-postnatal face prediction for expecting parents — a medical imaging transformation of an obstetric ultrasound into a newborn portrait illustration. Strictly educational and family-oriented.
-
-Edit this image: replace the ultrasound texture with photorealistic newborn skin. Keep the EXACT same silhouette, face position, head angle, tilt, and scale. This is a texture swap, not a new portrait.
-
-${spatialBlock ? `${spatialBlock}\n\n` : ""}View angle: "${analysis.viewAngle}" — ${viewAngleInstruction}.${analysis.spatialLayout ? ` Head tilt: ${analysis.spatialLayout.headTiltDegrees}° — preserve exactly.` : ""}
-
-${visionBlock}
-
-IDENTITY FIDELITY (CRITICAL — this is the #1 priority): Reproduce THIS SPECIFIC baby's features exactly as analyzed above — not a generic newborn. The exact nose bridge width, lip thickness, chin shape, forehead slope, cheek fullness, and proportional distances between features must match the ultrasound. If a feature is distinctive (e.g., button nose, full lips, prominent chin), it MUST be distinctively the same in the output.
-
-If a hand is visible, keep it at the same position. Do not add body or shoulders not in the input. Treat the crop as a fixed frame: do not center the face, do not rotate it upright, and do not invent hidden anatomy. Family-safe close-up. Realistic newborn skin with peach fuzz and natural color variation. Light cream background. No text, no logos.${scanType === "2d" ? " 2D ultrasound — use analysis descriptions to guide reconstruction." : ""}`;
-
-  const skinToneModifier =
-    skinTone === "moreno"
-      ? "Skin tone requirement: the newborn has warm brown skin with a naturally dark complexion. Render the skin tone accurately: rich melanin, warm undertones, darker coloring consistent with a moreno infant."
-      : null;
-
-  return [
-    base,
-    buildClinicalNotesBlock(clinicalNotes),
-    skinToneModifier,
-    styleModifiers[style],
-    creativityModifier(creativity),
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-}
 
 function buildEnhancedRealisticPrompt(
   creativity: number,
@@ -637,7 +766,6 @@ function buildEnhancedRealisticPrompt(
 }
 
 export function buildEnhancedPrompt(
-  style: Style,
   creativity: number,
   skinTone: SkinTone = "normal",
   mode: GenerationMode = "portrait",
@@ -645,11 +773,10 @@ export function buildEnhancedPrompt(
   anatomicalRegion: AnatomicalRegion = "face",
   clinicalNotes: string = "",
   analysis: UltrasoundAnalysis | null = null,
+  lbGeom?: LetterboxGeometry,
 ): string {
-  // If no analysis, fall back to standard prompt
   if (!analysis) {
     return buildPrompt(
-      style,
       creativity,
       skinTone,
       mode,
@@ -659,28 +786,12 @@ export function buildEnhancedPrompt(
     );
   }
 
-  // Enhanced portrait with vision analysis is only available for face
   if (mode === "portrait" && anatomicalRegion === "face") {
-    return buildEnhancedPortraitPrompt(
-      style,
-      creativity,
-      skinTone,
-      scanType,
-      clinicalNotes,
-      analysis,
-    );
+    return buildFacePortraitPrompt({ creativity, skinTone, scanType, clinicalNotes, lbGeom }, analysis);
   }
 
-  // fullBody portrait — no enhanced version yet, use standard portrait prompt
   if (mode === "portrait" && anatomicalRegion === "fullBody") {
-    return buildPortraitPrompt(
-      style,
-      creativity,
-      skinTone,
-      scanType,
-      clinicalNotes,
-      anatomicalRegion,
-    );
+    return buildFullBodyPortraitPrompt(creativity, skinTone, scanType, clinicalNotes);
   }
 
   return buildEnhancedRealisticPrompt(
@@ -699,9 +810,7 @@ export function buildEnhancedPrompt(
  * Reduced organ anchor block for the salvage profile. Omits cardiacDetails
  * entirely and adds artifact-awareness lines.
  */
-function buildSalvageOrganAnchorBlock(
-  analysis: UltrasoundAnalysis,
-): string {
+function buildSalvageOrganAnchorBlock(analysis: UltrasoundAnalysis): string {
   const organDetails = analysis.organDetails;
   if (!organDetails) return "";
 
@@ -716,7 +825,7 @@ function buildSalvageOrganAnchorBlock(
     `- Image quality: ${analysis.imageQuality}`,
     `- Anatomy confidence: ${organDetails.anatomyConfidence}`,
     `- Overlay interference: ${organDetails.overlayInterference}`,
-    `- Visible structures (treat as anonymous tissue masses): ${visibleStructures}`,
+    `- Supported visible structures: ${visibleStructures}`,
   ];
 
   if (organDetails.sidedness) {
@@ -725,74 +834,49 @@ function buildSalvageOrganAnchorBlock(
 
   lines.push(
     `- Anatomy note: ${organDetails.visibleAnatomyDescription}`,
-    `- Hard rule: do NOT name specific chambers (LV, RV, LA, RA), valves, or vessels. Treat all visible structures as anonymous tissue masses with varying density.`,
+    `- Hard rule: if a chamber, septum, valve, or vessel is explicitly supported by the scan, you may render it conservatively. Do NOT upgrade uncertain anatomy into a complete textbook diagram.`,
+    `- Hard rule: unresolved regions must stay partial, dark, or visually ambiguous rather than being repaired into smooth walls.`,
     `- Hard rule: residual bright dots from cleaned measurement rings are non-anatomical — ignore any circular or elliptical dot patterns.`,
     `- Hard rule: black bands or gaps are removed background/overlay — do NOT fill them with tissue or interpret them as septum, vessel wall, or tissue plane.`,
     `- Hard rule: preserve the same asymmetry, incompleteness, and crop boundaries as the ultrasound.`,
   );
 
+  const cardiac = organDetails.cardiacDetails;
+  if (cardiac) {
+    if (cardiac.visibleChambers.length > 0) {
+      lines.push(`- Supported chambers: ${cardiac.visibleChambers.join(", ")}`);
+    }
+    if (cardiac.valvesVisible.length > 0) {
+      lines.push(`- Supported valves: ${cardiac.valvesVisible.join(", ")}`);
+    }
+    lines.push(`- Septal appearance: ${cardiac.septalIntegrity}`);
+  }
+
   return lines.join("\n");
 }
 
-const heartSalvageBase = `Edit this image: replace the ultrasound texture with a restrained photorealistic tissue translation in GE Voluson HDlive style. Keep the EXACT same cross-sectional shape, composition, and spatial layout as the input. This is a local texture translation, not a new illustration or anatomical reconstruction.
+const heartSalvageBase = `Edit this image: replace the ultrasound texture with a restrained photorealistic translation of a partial fetal cardiac ultrasound slice in GE Voluson HDlive style. Keep the EXACT same cross-sectional shape, composition, and spatial layout as the input. This is a local texture translation, not a new illustration or anatomical reconstruction.
 
 CRITICAL RESTRICTIONS:
-- Do NOT name or label specific chambers, valves, or vessels. Treat all visible structures as anonymous tissue masses with varying density.
 - Do NOT complete anatomy — preserve ambiguity and partial structures exactly as they appear.
 - Do NOT create concentric rings, donut-like chambers, smooth circular walls, or a large enclosing oval. These are hallucination patterns.
 - Do NOT turn black gaps, black bands, or masked regions into tissue boundaries. Areas from removed overlays remain absent/background.
 - Do NOT present this as a dissected specimen, pathology sample, or polished anatomical cutaway.
 - Do NOT generate a uniform meat-like slab filling the entire frame.
 - If residual bright dots from cleaned measurement rings remain, ignore them — they are non-anatomical.
+- If the scan supports only part of a chamber, septum, or valve, keep it partial. Unresolved areas should remain dark or soft-edged rather than repaired.
+- If partial structures remain unidentified, render them as anonymous tissue masses without assigning chamber or vessel identity.
 
-Where the scan shows amorphous dark/bright blobs rather than clear anatomy, preserve those blobs as localised soft tissue masses vs fluid-filled spaces. Keep uncertain tissue soft and unresolved.
+Preserve the exact asymmetry and partial geometry of the slice. Where the scan is noisy or incomplete, keep uncertain tissue soft and unresolved instead of inventing a clean thoracic diagram.
 
-All tissue must be SOLID and OPAQUE, not translucent or gelatinous. Dark open spaces remain as cavities. Rose-pink tissue with subtle texture. Warm HDlive 3D directional lighting with controlled depth and very restrained specular highlights. NO TEXT, no labels, no annotations.`;
+All tissue must be SOLID and OPAQUE, not translucent or gelatinous. Dark open spaces remain as cavities. Rose-pink myocardial tissue may have subtle texture, but the frame must not read as a specimen slab. Warm HDlive 3D directional lighting with controlled depth and very restrained specular highlights. NO TEXT, no labels, no annotations.`;
 
 type HeartProfile = "strict" | "salvage";
-
-function buildHeartOpenAiPrompt(
-  profile: HeartProfile,
-  scanType: ScanType,
-  clinicalNotes: string,
-  analysisBlock: string | null,
-  promptBody: string,
-): string {
-  const scanDesc = scanTypeDescription(scanType);
-  const profileHeader =
-    profile === "strict"
-      ? "PROFILE: STRICT — this scan has been verified as clean with high anatomical confidence. Render all confirmed structures with full HDlive tissue detail."
-      : "PROFILE: SALVAGE — this scan has artifacts or ambiguous anatomy. Apply a very restrained HDlive translation only.";
-  const contextBlock =
-    profile === "strict"
-      ? `CONTEXT: Transform this obstetric ultrasound into a photorealistic 3D anatomical visualization. The input is ${scanDesc} showing an amorphous biological tissue cross-section. This is a direct texture translation of the input scan, not a reconstruction or new illustration.`
-      : `CONTEXT: The input is ${scanDesc} showing an amorphous biological tissue cross-section. Apply a restrained local texture translation preserving the exact ROI silhouette.`;
-  const spatialFidelity =
-    profile === "strict"
-      ? `SPATIAL FIDELITY (non-negotiable): Every structure must be in the EXACT same position, proportion, and orientation as in the ultrasound. Do NOT recompose, recenter, or generate a generic diagram. Render ONLY what is visible in this specific scan.`
-      : `SPATIAL FIDELITY (non-negotiable): Every structure must be in the EXACT same position as in the ultrasound. Do NOT recompose, recenter, or generate a generic diagram.`;
-  const scanNote =
-    scanType === "2d"
-      ? profile === "strict"
-        ? "Note: 2D ultrasound. Reconstruct 3D depth from the visible slice while preserving the exact same spatial layout."
-        : "Note: 2D ultrasound — preserve the cross-sectional geometry exactly."
-      : null;
-
-  return joinPromptSections(
-    profileHeader,
-    `CONTENT CLASSIFICATION: This is a strictly clinical medical illustration for obstetrics education — an anatomical diagram of internal fetal structures. No nudity, no sexual content, no human subjects depicted as people.`,
-    contextBlock,
-    analysisBlock,
-    spatialFidelity,
-    promptBody,
-    scanNote,
-    buildClinicalNotesBlock(clinicalNotes),
-  );
-}
 
 function buildHeartGeminiPrompt(
   profile: HeartProfile,
   scanType: ScanType,
+  creativity: number,
   clinicalNotes: string,
   anchorBlock: string | null,
   promptBody: string,
@@ -801,6 +885,12 @@ function buildHeartGeminiPrompt(
     profile === "strict"
       ? "PROFILE: STRICT — clean scan, high anatomical confidence."
       : "PROFILE: SALVAGE — artifacts or ambiguous anatomy detected. Apply very restrained HDlive translation.";
+  const creativityInstruction =
+    creativity <= 30
+      ? "HEART FIDELITY MODE: strict local translation only. Preserve exact partial geometry and unresolved anatomy."
+      : creativity <= 70
+        ? "HEART FIDELITY MODE: balanced realism only. Improve tissue appearance without changing the cardiac slice layout."
+        : "HEART FIDELITY MODE: higher realism in lighting and texture only. Never invent missing anatomy.";
   const scanNote =
     scanType === "2d"
       ? profile === "strict"
@@ -809,51 +899,9 @@ function buildHeartGeminiPrompt(
       : "";
 
   return joinPromptSections(
-    `${profileHeader}\n\n${promptBody}${scanNote}`,
+    `${profileHeader}\n\n${creativityInstruction}\n\n${promptBody}${scanNote}`,
     anchorBlock,
     buildClinicalNotesBlock(clinicalNotes),
-  );
-}
-
-/**
- * Heart strict prompt for OpenAI path.
- * Used when preprocessing is clean AND vision analysis is confident.
- */
-export function buildHeartStrictPrompt(
-  scanType: ScanType,
-  clinicalNotes: string,
-  analysis: UltrasoundAnalysis | null,
-): string {
-  const visionBlock = analysis ? buildVisionOrganBlock(analysis) : "";
-
-  return buildHeartOpenAiPrompt(
-    "strict",
-    scanType,
-    clinicalNotes,
-    visionBlock,
-    `${realisticRegionDetails.heart}
-
-ZERO text of any kind — no anatomical labels, ZERO measurement markers, ZERO arrows, ZERO watermarks. Pure visual rendering.`,
-  );
-}
-
-/**
- * Heart salvage prompt for OpenAI path.
- * Used when artifacts are present or analysis is not confident.
- * Much more restrictive — anonymous tissue, no anatomy completion.
- */
-export function buildHeartSalvagePrompt(
-  scanType: ScanType,
-  clinicalNotes: string,
-  analysis: UltrasoundAnalysis | null,
-): string {
-  const visionBlock = analysis ? buildSalvageOrganAnchorBlock(analysis) : "";
-  return buildHeartOpenAiPrompt(
-    "salvage",
-    scanType,
-    clinicalNotes,
-    visionBlock,
-    heartSalvageBase,
   );
 }
 
@@ -864,6 +912,7 @@ export function buildGeminiHeartStrictPrompt(
   scanType: ScanType,
   clinicalNotes: string,
   analysis: UltrasoundAnalysis | null,
+  creativity: number,
 ): string {
   const anchorBlock = analysis
     ? buildGeminiOrganAnchorBlock("heart", analysis)
@@ -872,6 +921,7 @@ export function buildGeminiHeartStrictPrompt(
   return buildHeartGeminiPrompt(
     "strict",
     scanType,
+    creativity,
     clinicalNotes,
     anchorBlock,
     geminiRegionPrompts.heart,
@@ -886,16 +936,79 @@ export function buildGeminiHeartSalvagePrompt(
   scanType: ScanType,
   clinicalNotes: string,
   analysis: UltrasoundAnalysis | null,
+  creativity: number,
 ): string {
-  const anchorBlock = analysis
-    ? buildSalvageOrganAnchorBlock(analysis)
-    : null;
+  const anchorBlock = analysis ? buildSalvageOrganAnchorBlock(analysis) : null;
 
   return buildHeartGeminiPrompt(
     "salvage",
     scanType,
+    creativity,
     clinicalNotes,
     anchorBlock,
     heartSalvageBase,
+  );
+}
+
+// ---------- Heart-specific prompt builders (OpenAI path) ----------
+
+/**
+ * Heart strict prompt for OpenAI path.
+ * Uses full vision organ block (CARDIAC STRUCTURE DETAILS) for clean scans.
+ */
+export function buildHeartStrictPrompt(
+  scanType: ScanType,
+  clinicalNotes: string,
+  analysis: UltrasoundAnalysis | null,
+  creativity: number = 50,
+): string {
+  const profileHeader = "PROFILE: STRICT — clean scan, high anatomical confidence.";
+  const creativityInstruction =
+    creativity <= 30
+      ? "HEART FIDELITY MODE: strict local translation only. Preserve exact partial geometry and unresolved anatomy."
+      : creativity <= 70
+        ? "HEART FIDELITY MODE: balanced realism only. Improve tissue appearance without changing the cardiac slice layout."
+        : "HEART FIDELITY MODE: higher realism in lighting and texture only. Never invent missing anatomy.";
+  const scanNote =
+    scanType === "2d"
+      ? " This is a 2D ultrasound — reconstruct 3D depth from the visible cross-section."
+      : "";
+  const visionBlock = analysis ? buildVisionOrganBlock(analysis) : null;
+
+  return joinPromptSections(
+    `${profileHeader}\n\n${creativityInstruction}\n\n${geminiRegionPrompts.heart}${scanNote}`,
+    visionBlock,
+    buildClinicalNotesBlock(clinicalNotes),
+  );
+}
+
+/**
+ * Heart salvage prompt for OpenAI path.
+ * Uses reduced anchor block (no cardiacDetails) and adds artifact constraints.
+ */
+export function buildHeartSalvagePrompt(
+  scanType: ScanType,
+  clinicalNotes: string,
+  analysis: UltrasoundAnalysis | null,
+  creativity: number = 50,
+): string {
+  const profileHeader =
+    "PROFILE: SALVAGE — artifacts or ambiguous anatomy detected. Apply very restrained HDlive translation.";
+  const creativityInstruction =
+    creativity <= 30
+      ? "HEART FIDELITY MODE: strict local translation only. Preserve exact partial geometry and unresolved anatomy."
+      : creativity <= 70
+        ? "HEART FIDELITY MODE: balanced realism only. Improve tissue appearance without changing the cardiac slice layout."
+        : "HEART FIDELITY MODE: higher realism in lighting and texture only. Never invent missing anatomy.";
+  const scanNote =
+    scanType === "2d"
+      ? " This is a 2D ultrasound — preserve the cross-sectional geometry exactly."
+      : "";
+  const anchorBlock = analysis ? buildSalvageOrganAnchorBlock(analysis) : null;
+
+  return joinPromptSections(
+    `${profileHeader}\n\n${creativityInstruction}\n\n${heartSalvageBase}${scanNote}`,
+    anchorBlock,
+    buildClinicalNotesBlock(clinicalNotes),
   );
 }
