@@ -45,3 +45,4 @@ next-env.d.ts
 # Multi-tenant: account config (contains PINs) and runtime usage data
 /config/accounts.json
 /data/
+.cursor/
