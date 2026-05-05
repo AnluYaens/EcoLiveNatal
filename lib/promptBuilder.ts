@@ -478,11 +478,7 @@ function getSpatialLock(analysis: UltrasoundAnalysis | null): SpatialLock {
   // --- hand spatial lock ---
   let handLock: string | null = null;
   if (analysis?.faceDetails?.handPosition) {
-    const coordSuffix =
-      sl?.handTipX !== undefined && sl?.handTipY !== undefined
-        ? ` The hand tip is at approximately (${Math.round(sl.handTipX * 100)}%, ${Math.round(sl.handTipY * 100)}%) of the frame.`
-        : '';
-    handLock = `${analysis.faceDetails.handPosition}${coordSuffix} — this hand MUST appear in the output at the same relative location as in the source image. Do NOT remove, relocate, or merge the hand with the face.`;
+    handLock = `${analysis.faceDetails.handPosition} — this hand MUST appear in the output at the same relative location as in the source image. Do NOT remove, relocate, or merge the hand with the face.`;
   }
 
   // --- explicit facing description (no convention ambiguity) ---
