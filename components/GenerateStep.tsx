@@ -37,7 +37,7 @@ interface ApiResponse {
   error?: string;
 }
 
-const GENERATE_REQUEST_TIMEOUT_MS = 90_000;
+const GENERATE_REQUEST_TIMEOUT_MS = 180_000;
 const MAX_GENERATE_IMAGE_DIM = 1280;
 
 const QUALITY_WARNING_COPY: Record<ImageQualityWarning, 'qualityDark' | 'qualityLowContrast' | 'qualitySubjectTooSmall'> = {

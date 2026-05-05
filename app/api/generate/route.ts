@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { preprocessUltrasound, stripYellowOverlay, hasMaskStrips } from '@/lib/imagePreprocess';
-import { generatePortrait } from '@/lib/openaiClient';
+import { chooseGptImage2OutputSize, generatePortrait, isGptImage2Model } from '@/lib/openaiClient';
 import {
-  buildPrompt,
-  buildEnhancedPrompt,
+  buildCanonicalPrompt,
   buildGeminiPrompt,
   buildGeminiHeartStrictPrompt,
   buildGeminiHeartSalvagePrompt,
@@ -31,23 +30,36 @@ import {
 import * as accountStore from '@/lib/accountStore';
 import { createApiErrorResponse } from '@/lib/apiErrors';
 
+type ImageProviderStrategy = 'dual' | 'openai_all' | 'gemini_organs';
+
 // ⚠️ In-memory rate limiting — resets on each serverless cold start.
 // For production multi-instance deployments, replace with Redis/Upstash.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 60_000;
-const OPENAI_TIMEOUT_MS = 60_000;
+const DEFAULT_OPENAI_TIMEOUT_MS = 120_000;
+const OPENAI_TIMEOUT_MS = getTimeoutFromEnv(
+  'OPENAI_IMAGE_TIMEOUT_MS',
+  DEFAULT_OPENAI_TIMEOUT_MS,
+  60_000,
+  300_000,
+);
 const GEMINI_TIMEOUT_MS = 120_000;
 const USE_GEMINI_FOR_ORGANS = process.env.USE_GEMINI_FOR_ORGANS === 'true';
+const DEFAULT_OPENAI_PORTRAIT_MODEL = 'gpt-image-2';
+const DEFAULT_OPENAI_ANATOMICAL_MODEL = 'gpt-image-2';
+const DEFAULT_IMAGE_PROVIDER_STRATEGY: ImageProviderStrategy = 'openai_all';
 const IMAGE_CACHE_TTL_MS = 45 * 60_000;
 const IMAGE_CACHE_MAX_ENTRIES = 100;
-const PROMPT_FINGERPRINT_VERSION = 'v8-identity-fidelity';
+const PROMPT_FINGERPRINT_VERSION = 'v8-canonical-prompts';
 const ENABLE_SESSION_IMAGE_CACHE = process.env.ENABLE_SESSION_IMAGE_CACHE === 'true';
 const ENABLE_VISION_ANALYSIS = process.env.ENABLE_VISION_ANALYSIS === 'true';
+// Diagnostic flags for Fase A experiments (docs/diagnosis_2026_04.md).
+// Both default off — set in .env to enable without committing.
+const SKIP_IMAGE_PREPROCESS = process.env.SKIP_IMAGE_PREPROCESS === 'true';
 
 type RequestFingerprint = string;
-
 interface SessionImageCacheEntry {
   imageBase64: string;
   expiresAt: number;
@@ -63,8 +75,7 @@ interface PromptBuildInput {
   clinicalNotes: string;
   analysis: UltrasoundAnalysis | null;
   heartProfile: HeartRenderProfile | null;
-  proportionalW?: number;
-  proportionalH?: number;
+  letterboxInfo?: { padLeft: number; padTop: number; scaledW: number; scaledH: number };
 }
 
 interface BuiltPrompt {
@@ -74,6 +85,40 @@ interface BuiltPrompt {
 }
 
 const sessionImageCache = new Map<RequestFingerprint, SessionImageCacheEntry>();
+
+function getTimeoutFromEnv(
+  envName: string,
+  fallbackMs: number,
+  minMs: number,
+  maxMs: number,
+): number {
+  const raw = process.env[envName]?.trim();
+  if (!raw) return fallbackMs;
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) {
+    console.warn(`[generate] invalid ${envName}="${raw}", defaulting to ${fallbackMs}ms`);
+    return fallbackMs;
+  }
+
+  return Math.min(maxMs, Math.max(minMs, parsed));
+}
+
+function getImageProviderStrategy(): ImageProviderStrategy {
+  const raw = process.env.IMAGE_PROVIDER_STRATEGY?.trim();
+  if (!raw) return DEFAULT_IMAGE_PROVIDER_STRATEGY;
+
+  if (raw === 'dual' || raw === 'openai_all' || raw === 'gemini_organs') {
+    return raw;
+  }
+
+  console.warn(
+    `[generate] invalid IMAGE_PROVIDER_STRATEGY="${raw}", defaulting to ${DEFAULT_IMAGE_PROVIDER_STRATEGY}`,
+  );
+  return DEFAULT_IMAGE_PROVIDER_STRATEGY;
+}
+
+const IMAGE_PROVIDER_STRATEGY = getImageProviderStrategy();
 
 function createRequestFingerprint(
   processedImageBuffer: Buffer,
@@ -218,15 +263,38 @@ function getPreprocessPath(
   return `${provider}:${anatomicalRegion}:${scanType}`;
 }
 
+function isPortraitOpenAiFlow(
+  anatomicalRegion: AnatomicalRegion,
+  mode: GenerationMode,
+): boolean {
+  return mode === 'portrait' && (anatomicalRegion === 'face' || anatomicalRegion === 'fullBody');
+}
+
 function shouldUseGeminiProvider(
   anatomicalRegion: AnatomicalRegion,
   mode: GenerationMode,
 ): boolean {
-  return (
-    USE_GEMINI_FOR_ORGANS &&
-    anatomicalRegion !== 'face' &&
-    !(mode === 'portrait' && anatomicalRegion === 'fullBody')
-  );
+  if (isPortraitOpenAiFlow(anatomicalRegion, mode) || anatomicalRegion === 'face') {
+    return false;
+  }
+
+  if (IMAGE_PROVIDER_STRATEGY === 'openai_all') {
+    return false;
+  }
+
+  if (IMAGE_PROVIDER_STRATEGY === 'gemini_organs') {
+    return true;
+  }
+
+  return USE_GEMINI_FOR_ORGANS;
+}
+
+function getOpenAiModel(mode: GenerationMode): string {
+  if (mode === 'portrait') {
+    return process.env.OPENAI_PORTRAIT_MODEL?.trim() || DEFAULT_OPENAI_PORTRAIT_MODEL;
+  }
+
+  return process.env.OPENAI_ANATOMICAL_MODEL?.trim() || DEFAULT_OPENAI_ANATOMICAL_MODEL;
 }
 
 function getTelemetryProvider(useGeminiPath: boolean): TelemetryProvider {
@@ -237,34 +305,51 @@ function getTelemetryProvider(useGeminiPath: boolean): TelemetryProvider {
   return useGeminiPath ? 'gemini' : 'openai';
 }
 
+async function runProviderCallWithTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutError = new Error('timeout');
+
+  const timedOperation = operation(controller.signal).catch((err: unknown) => {
+    if (controller.signal.aborted) {
+      throw timeoutError;
+    }
+    throw err;
+  });
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(timeoutError);
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([timedOperation, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function buildOpenAiPrompt(input: PromptBuildInput): BuiltPrompt {
-  const analysisUsed = input.analysis !== null;
-  const lbGeom =
-    input.proportionalW && input.proportionalH
-      ? { proportionalW: input.proportionalW, proportionalH: input.proportionalH }
-      : undefined;
+  const builtPrompt = buildCanonicalPrompt({
+    creativity: input.creativity,
+    skinTone: input.skinTone,
+    mode: input.mode,
+    scanType: input.scanType,
+    anatomicalRegion: input.anatomicalRegion,
+    clinicalNotes: input.clinicalNotes,
+  });
+
   return {
-    prompt: analysisUsed
-      ? buildEnhancedPrompt(
-          input.creativity,
-          input.skinTone,
-          input.mode,
-          input.scanType,
-          input.anatomicalRegion,
-          input.clinicalNotes,
-          input.analysis,
-          lbGeom,
-        )
-      : buildPrompt(
-          input.creativity,
-          input.skinTone,
-          input.mode,
-          input.scanType,
-          input.anatomicalRegion,
-          input.clinicalNotes,
-        ),
-    promptType: analysisUsed ? 'enhanced' : 'base',
-    analysisUsed,
+    prompt: builtPrompt.prompt,
+    promptType: builtPrompt.promptType,
+    analysisUsed: input.analysis !== null,
   };
 }
 
@@ -445,14 +530,22 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // 6. Provider + preprocess selection.
-    // Portrait mode for fullBody stays on OpenAI; anatomical realistic flows can use Gemini.
+    // Portrait stays on OpenAI; anatomical realistic flows follow the provider strategy.
     const useGeminiPath = shouldUseGeminiProvider(anatomicalRegion, mode);
+    const openAiModel = useGeminiPath ? null : getOpenAiModel(mode);
+    const useNativeOpenAiSize = openAiModel !== null && isGptImage2Model(openAiModel);
+    const useLegacyOpenAiLetterbox = !useGeminiPath && !useNativeOpenAiSize;
     telemetryContext.provider = getTelemetryProvider(useGeminiPath);
     let processed: Buffer;
 
-    console.log(`[generate] provider=${useGeminiPath ? 'GEMINI' : 'OPENAI'} region=${anatomicalRegion} mode=${mode} scanType=${scanType}`);
+    console.log(
+      `[generate] strategy=${IMAGE_PROVIDER_STRATEGY} provider=${useGeminiPath ? 'GEMINI' : 'OPENAI'} region=${anatomicalRegion} mode=${mode} scanType=${scanType}`,
+    );
 
-    if (useGeminiPath) {
+    if (SKIP_IMAGE_PREPROCESS) {
+      console.log('[generate] SKIP_IMAGE_PREPROCESS=true — bypassing annotation blackout, preprocessUltrasound, stripYellowOverlay, heart preprocess');
+      processed = buffer;
+    } else if (useGeminiPath) {
       const preCroppedBuffer = await blackOutAnnotationPanels(buffer);
       processed = await preprocessUltrasound(preCroppedBuffer, {
         anatomicalRegion,
@@ -474,7 +567,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 6c. Heart-specific preprocessing (artifact detection & cleaning)
-    if (anatomicalRegion === 'heart') {
+    if (!SKIP_IMAGE_PREPROCESS && anatomicalRegion === 'heart') {
       const heartResult = await preprocessHeart(processed);
       processed = heartResult.cleanedBuffer;
       heartArtifactMap = heartResult.artifactMap;
@@ -483,37 +576,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6a-post. Save a clean proportional buffer for vision analysis before
-    // letterboxing. Letterboxing adds black padding bars whose y-offsets would
-    // shift spatial coordinates; feature/direction analysis is more accurate on
-    // the unpadded image. facingDirection and feature descriptions are text-based
-    // and coordinate-independent, but the coordinate analysis is cleaner here too.
+    // 6a-post. Capture the proportional buffer for vision analysis and for
+    // native GPT Image 2 sizing. Legacy OpenAI models still use the square
+    // sentinel-letterbox path below, so their pre-letterbox geometry is kept.
     const processedForAnalysis = processed;
 
-    // Capture proportional dimensions before letterboxing. Vision analysis runs
-    // on processedForAnalysis (proportional frame), so spatial coordinates like
-    // subjectCenterX/Y and subjectOccupancyPercent are relative to pW×pH, not
-    // the 1024×1024 canvas. These are threaded to the prompt builder to apply
-    // the letterbox correction formula before embedding values in BLOCK A.
-    let proportionalW = 1024;
-    let proportionalH = 1024;
+    // Compute native GPT Image 2 size, or legacy sentinel-bar geometry for
+    // precise post-generation pixel crop on older OpenAI image models.
+    let originalW = 1024;
+    let originalH = 1024;
+    let padLeft = 0;
+    let padTop = 0;
+    let scaledW = 1024;
+    let scaledH = 1024;
+    let openAiOutputSize: `${number}x${number}` = '1024x1024';
     if (!useGeminiPath) {
-      const propMeta = await sharp(processedForAnalysis).metadata();
-      proportionalW = propMeta.width ?? 1024;
-      proportionalH = propMeta.height ?? 1024;
+      const preMeta = await sharp(processedForAnalysis).metadata();
+      originalW = preMeta.width ?? 1024;
+      originalH = preMeta.height ?? 1024;
+      openAiOutputSize = useNativeOpenAiSize
+        ? chooseGptImage2OutputSize(originalW, originalH)
+        : '1024x1024';
+
+      if (useLegacyOpenAiLetterbox) {
+        const scale = Math.min(1, Math.min(1024 / originalW, 1024 / originalH));
+        scaledW = Math.round(originalW * scale);
+        scaledH = Math.round(originalH * scale);
+        padLeft = Math.floor((1024 - scaledW) / 2);
+        padTop  = Math.floor((1024 - scaledH)  / 2);
+      }
     }
 
-    // For OpenAI: letterbox the preprocessed image to exactly 1024×1024.
-    // 'inside' fit in preprocessUltrasound preserves the original aspect ratio for
-    // accurate mask strip placement, but sends a non-square image to OpenAI.
-    // OpenAI always outputs 1024×1024, so without padding it fills the tight crop
-    // and the portrait looks zoomed in. 'contain' pads with black so the face is
-    // naturally proportioned in the frame. The trim step later removes these bars.
-    if (!useGeminiPath) {
+    // Legacy OpenAI models: letterbox to exactly 1024×1024 using pure cyan (#00FFFF) padding.
+    // Cyan never appears in 3D/4D ultrasound imagery (no tissue, gel, or device panel
+    // produces it) and carries no content-moderation associations — giving the model
+    // an unambiguous signal that the padded areas are not content to fill or extend into.
+    if (useLegacyOpenAiLetterbox) {
       processed = await sharp(processed)
         .resize(1024, 1024, {
           fit: 'contain',
-          background: { r: 0, g: 0, b: 0 },
+          background: { r: 0, g: 255, b: 255 },
           withoutEnlargement: true,
         })
         .png()
@@ -521,11 +623,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 6b. Vision analysis (optional, non-blocking on failure)
-    // Runs on the pre-letterbox buffer so spatial coordinates are accurate.
-    // Previously skipped for face+portrait due to black mask strips corrupting
-    // coordinate analysis — those strips are now removed (face has 0 mask ratios),
-    // so vision analysis is re-enabled: facingDirection fixes mirrored portraits,
-    // feature descriptions (nose, lips, chin) fix generic results.
+    // Runs on the pre-letterbox buffer so feature descriptions (nose, lips, chin)
+    // are derived from the clean proportional image, unaffected by padding bars.
     let analysis: UltrasoundAnalysis | null = null;
     if (ENABLE_VISION_ANALYSIS) {
       try {
@@ -567,12 +666,13 @@ export async function POST(req: NextRequest) {
       clinicalNotes: sanitizedNotes,
       analysis,
       heartProfile,
-      proportionalW,
-      proportionalH,
+      letterboxInfo: useLegacyOpenAiLetterbox
+        ? { padLeft, padTop, scaledW, scaledH }
+        : undefined,
     };
-    const builtPrompt = useGeminiPath
-      ? buildGeminiProviderPrompt(promptBuildInput)
-      : buildOpenAiPrompt(promptBuildInput);
+    const builtPrompt: BuiltPrompt = useGeminiPath
+        ? buildGeminiProviderPrompt(promptBuildInput)
+        : buildOpenAiPrompt(promptBuildInput);
 
     telemetryContext.analysisUsed = builtPrompt.analysisUsed;
     telemetryContext.imageQuality = analysis?.imageQuality;
@@ -580,6 +680,9 @@ export async function POST(req: NextRequest) {
     console.log(
       `[generate] prompt=${builtPrompt.promptType} (${builtPrompt.prompt.length} chars)`,
     );
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[generate] full prompt:\n', builtPrompt.prompt);
+    }
 
     let requestFingerprint: RequestFingerprint | null = null;
     if (ENABLE_SESSION_IMAGE_CACHE) {
@@ -637,29 +740,30 @@ export async function POST(req: NextRequest) {
       );
     } else {
       console.log(
-        `[generate] calling OPENAI (model=gpt-image-1.5, prompt=${builtPrompt.prompt.length} chars)...`,
+        `[generate] calling OPENAI (model=${openAiModel}, size=${openAiOutputSize}, prompt=${builtPrompt.prompt.length} chars)...`,
       );
     }
 
     const genStart = Date.now();
     const rawBase64 = useGeminiPath
-      ? await Promise.race([
-          generateAnatomicalImage(
+      ? await runProviderCallWithTimeout(
+          () => generateAnatomicalImage(
             processed,
             builtPrompt.prompt,
             originalWidth,
             originalHeight,
           ),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), GEMINI_TIMEOUT_MS)
-          ),
-        ])
-      : await Promise.race([
-          generatePortrait(processed, builtPrompt.prompt),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), OPENAI_TIMEOUT_MS)
-          ),
-        ]);
+          GEMINI_TIMEOUT_MS,
+        )
+      : await runProviderCallWithTimeout(
+          (signal) => generatePortrait(processed, builtPrompt.prompt, {
+            model: openAiModel ?? undefined,
+            signal,
+            size: openAiOutputSize,
+            timeoutMs: OPENAI_TIMEOUT_MS,
+          }),
+          OPENAI_TIMEOUT_MS,
+        );
     console.log(`[generate] image generated OK in ${((Date.now() - genStart) / 1000).toFixed(1)}s`);
 
     // 9. Post-processing: remove padding from Gemini output + color grading
@@ -684,10 +788,10 @@ export async function POST(req: NextRequest) {
         .sharpen({ sigma: 0.8, m1: 0.5, m2: 0.3 })
         .modulate({ brightness: 1.02, saturation: 1.03 });
     } else if (mode === 'portrait') {
-      // Portrait: light sharpening + warm shift
+      // Portrait: light sharpening, no saturation boost to avoid pink cast
       postProcessed = postProcessed
         .sharpen({ sigma: 0.8, m1: 0.5, m2: 0.3 })
-        .modulate({ brightness: 1.02, saturation: 1.05 });
+        .modulate({ brightness: 1.01, saturation: 1.0 });
     } else {
       // Realistic: stronger sharpening + warm saturation to enhance tissue texture and HDlive look
       postProcessed = postProcessed
@@ -695,17 +799,27 @@ export async function POST(req: NextRequest) {
         .modulate({ brightness: 1.03, saturation: 1.12 });
     }
 
-    // Trim letterbox/mask bars added during preprocessing.
-    // OpenAI path: always trim — the contain step above always adds black letterbox bars.
-    // Gemini path: trim only when preprocessing added mask strips (hasMaskStrips).
+    // Remove sentinel bars and restore original input dimensions.
+    // Legacy OpenAI path: extract the content area using pre-computed bar geometry
+    // (deterministic pixel crop — no color detection), then resize to the
+    // original pre-letterbox dimensions so output matches what was uploaded.
+    // GPT Image 2 path: keep the native aspect-ratio output without square crop/resize.
+    // Gemini path: trim mask strips when present, else keep as-is.
     const untrimmedBuffer = await postProcessed.png().toBuffer();
-    if (!useGeminiPath || hasMaskStrips(anatomicalRegion, scanType)) {
-      postProcessed = sharp(untrimmedBuffer).trim({ background: '#000000' });
+    let finalBuffer: Buffer;
+    if (useLegacyOpenAiLetterbox) {
+      finalBuffer = await sharp(untrimmedBuffer)
+        .extract({ left: padLeft, top: padTop, width: scaledW, height: scaledH })
+        .resize(originalW, originalH, { fit: 'fill' })
+        .png()
+        .toBuffer();
+    } else if (!useGeminiPath) {
+      finalBuffer = untrimmedBuffer;
+    } else if (hasMaskStrips(anatomicalRegion, scanType)) {
+      finalBuffer = await sharp(untrimmedBuffer).trim({ background: '#000000' }).png().toBuffer();
     } else {
-      postProcessed = sharp(untrimmedBuffer);
+      finalBuffer = await postProcessed.png().toBuffer();
     }
-
-    const finalBuffer = await postProcessed.png().toBuffer();
     const base64 = finalBuffer.toString('base64');
     console.log(`[generate] DONE — output size=${(finalBuffer.length / 1024).toFixed(0)}KB`);
 
