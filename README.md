@@ -40,7 +40,7 @@ The product includes a public marketing site, a token-gated generation app, bili
 
 | Layer | Technology |
 | --- | --- |
-| Framework | Next.js 14, React 18, TypeScript |
+| Framework | Next.js 16.2.4, React 19.2.5, TypeScript |
 | Styling | Tailwind CSS |
 | i18n | `next-intl` |
 | Portrait generation | OpenAI image editing API |
@@ -50,15 +50,18 @@ The product includes a public marketing site, a token-gated generation app, bili
 | Validation | `zod` |
 | Auth and quota storage | Upstash Redis |
 | Tests | Vitest |
+| Package manager | pnpm |
 
 ---
 
 ## Quick start
 
+This repo uses `pnpm` as its package manager.
+
 ### 1. Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2. Create your env file
@@ -81,7 +84,7 @@ EcoLiveNatal currently expects token authentication data in Redis. Create an Ups
 Use the included script to generate a token and store the account metadata in Redis:
 
 ```bash
-npx tsx scripts/generate-token.ts --name "Dr. Garcia" --id dr-garcia --limit 50
+pnpm dlx tsx scripts/generate-token.ts --name "Dr. Garcia" --id dr-garcia --limit 50
 ```
 
 This stores the token payload in Redis under the app namespace and prints the UUID token you can share with the clinic user.
@@ -89,7 +92,7 @@ This stores the token payload in Redis under the app namespace and prints the UU
 ### 5. Run the app
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Then open:
@@ -229,10 +232,10 @@ Works on Vercel, but note:
 ## Useful commands
 
 ```bash
-npm run dev
-npm run build
-npm run lint
-npm test
+pnpm dev
+pnpm build
+pnpm lint
+pnpm test
 ```
 
 ---
@@ -241,7 +244,7 @@ npm test
 
 Before shipping changes:
 
-- `npm run build` must pass
+- `pnpm build` must pass
 - token verification flow must work against Redis
 - generation flow should be tested with `MOCK_API=true` before live API usage
 

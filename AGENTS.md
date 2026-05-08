@@ -23,7 +23,11 @@ This file is the single source of truth for rules that all coding agents (Cursor
 ## Testing Rules
 
 - Prefer adding tests around pure libs and route handlers first; client DOM coverage is intentionally lighter than backend/lib coverage.
-- Before claiming completion, run `npm run build` and verify it passes cleanly.
+- Before claiming completion, run `pnpm build` and verify it passes cleanly.
+
+## Tooling Rules
+
+- The package manager for this repo is `pnpm`. Use `pnpm` commands in docs and verification instructions.
 
 ## Active Diagnostic Flags
 
@@ -32,10 +36,10 @@ See `docs/diagnosis_2026_04.md` for the current Fase A experiments. When working
 ## Project Commands
 
 ```bash
-npm run dev
-npm run build
-npm run lint
-npm test
+pnpm dev
+pnpm build
+pnpm lint
+pnpm test
 ```
 
 ### Provider Strategy Evaluation

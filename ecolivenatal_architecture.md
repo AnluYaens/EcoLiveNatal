@@ -12,11 +12,18 @@ Single source of truth for the current project state. If code and docs diverge, 
 - `app/api/verify-token/route.ts`: token verification endpoint with global throttling and per-IP brute-force protection.
 - `app/api/generate/route.ts`: generation endpoint for the ultrasound-to-image pipeline.
 - `app/api/internal/generation-telemetry/route.ts`: protected internal telemetry snapshot endpoint for non-image observability.
+- `proxy.ts`: Next.js locale proxy for `next-intl` route matching.
+
+## Runtime / Tooling
+
+- Package manager: `pnpm` (`pnpm-lock.yaml`, `packageManager: pnpm@10.33.0`).
+- Framework runtime: Next.js 16.2.4 with React 19.2.5.
+- Verification commands use `pnpm` (`pnpm lint`, `pnpm test`, `pnpm build`).
 
 ## App Structure
 
 - `app/layout.tsx`: root shell, global font, analytics, speed insights, global body classes.
-- `app/[locale]/layout.tsx`: validates locale, sets request locale for static rendering, and provides `NextIntlClientProvider`.
+- `app/[locale]/layout.tsx`: async locale layout for the Next.js 16 App Router; validates locale, sets request locale for static rendering, and provides `NextIntlClientProvider`.
 - `app/[locale]/app/layout.tsx`: wizard shell with `BrandHeader`, decorative background, and required `DisclaimerBanner`.
 - `components/landing/PublicPageShell.tsx`: shared marketing shell for the public landing and FAQ pages.
 - `i18n/config.ts`: canonical locale list and default locale.
@@ -93,7 +100,7 @@ Session access is gated by `components/TokenGate.tsx`, which stores:
 - OpenAI image calls must remain explicitly timed out. The default cap is 120 seconds and can be adjusted with `OPENAI_IMAGE_TIMEOUT_MS` for local/provider evaluation.
 - HEIC/HEIF conversion stays client-side.
 - API inputs must be server-validated with Zod.
-- Finish work by running `npm run build` and confirming a clean result.
+- Finish work by running `pnpm build` and confirming a clean result.
 
 ## Seed / Restricted Files
 
@@ -104,7 +111,7 @@ Treat as seed or high-risk infra. Only change when the task requires it or they 
 - `lib/imagePreprocess.ts`
 - `lib/heartPreprocess.ts`
 - `lib/cropUtils.ts`
-- `middleware.ts`
+- `proxy.ts`
 - `next.config.mjs`
 - `tailwind.config.ts`
 - `i18n/request.ts`
@@ -189,7 +196,7 @@ gpt-image-2 preserves source orientation, major contours, and visible structure 
 Anatomical/organ outputs do not invent unsupported findings, labels, diseases, damage, or clinical markers.
 Portrait outputs do not claim to be real predictions of the baby’s face.
 Existing dual-provider behavior can be restored by changing env flags.
-npm run build passes cleanly.
+pnpm build passes cleanly.
 No high-risk files are modified unless the implementation plan explicitly requires it.
 
 Rollback strategy:
